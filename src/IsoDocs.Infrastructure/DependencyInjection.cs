@@ -1,3 +1,5 @@
+using IsoDocs.Application.Auth;
+using IsoDocs.Infrastructure.Auth;
 using IsoDocs.Infrastructure.Persistence;
 using IsoDocs.Infrastructure.Persistence.Interceptors;
 using Microsoft.EntityFrameworkCore;
@@ -17,7 +19,7 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // SaveChanges 攔截器：自動維護 UpdatedAt
+        // SaveChanges 攝截器：自動維護 UpdatedAt
         services.AddSingleton<AuditableEntityInterceptor>();
 
         services.AddDbContext<IsoDocsDbContext>((sp, options) =>
@@ -39,9 +41,12 @@ public static class DependencyInjection
             options.AddInterceptors(sp.GetRequiredService<AuditableEntityInterceptor>());
         });
 
-        // TODO: issue #2 — 註冊 Microsoft.Identity.Web
+        // issue #2 [2.1.1] — Azure AD 使用者同步服務
+        // Scoped 同 DbContext。API 層 controller / authorization handler 可直接注入 IUserSyncService。
+        services.AddScoped<IUserSyncService, UserSyncService>();
+
         // TODO: issue #22 — 註冊 Hangfire
-        // TODO: issue #23 — 註冊 Microsoft Graph
+        // TODO: issue #23 — 註冊 Microsoft Graph（提供離職同步所需的 GraphServiceClient）
         // TODO: issue #26 — 註冊 Azure Blob Storage
 
         return services;
