@@ -100,16 +100,35 @@ dotnet user-secrets --project src/IsoDocs.Api set "AzureAd:Audience"  "api://<ap
 | GET    | `/api/me`            | Authorize | 以 token 同步 User 並回傳 CurrentUserDto。 |
 | GET    | `/api/health`        | Anonymous | 存活檢查。 |
 
-## 8. 本輪未完成 / 交出去下輪
+## 8. 驗證管道 / 本輪未完成
 
-- [x] **整合測試骨架已就位**（issue #2 第三輪補上）：使用 `WebApplicationFactory<Program>` +
-  `TestAuthHandler` 替身 + `FakeUserSyncService`，覆蓋 `/api/health`、`/api/auth/login`、
-  `/api/auth/logout`、`/api/me` 共 8 個案例。詳見 `tests/IsoDocs.Api.IntegrationTests/README.md`。
-  待 sandbox 環境放開或人類在本機跑 `dotnet test` 確認全綠後即可關閉本驗收條件。
-- [ ] **JWT 簽章端到端測試**：可考慮再開 `tests/IsoDocs.Api.JwtTests/`，用
-  `Microsoft.IdentityModel.Tokens` 自簽 JWT 驗證真實 JwtBearer middleware 的「過期 / audience
-  不符 / issuer 不符」三種失敗路徑。本 issue 不強求，留給後續優化。
+### CI workflow (本輪新增)
+
+`.github/workflows/dotnet.yml` 已加入。觸發條件：
+- `push` 到 `main` 或任何 `feature/**` 分支
+- `pull_request` 進 `main`
+
+工作步驟：`dotnet restore → build (Release) → test (Application.UnitTests + Api.IntegrationTests)`，
+測試結果以 `.trx` 上傳為 artifact 保留 7 天。
+
+意義：sandbox 因 proxy 擋住 .NET SDK / NuGet 無法本機驗證，
+但 GitHub-hosted runner 不受此限。本分支的所有 push 與後續 PR 會自動跑全套測試，
+把實際的 build/test 狀態暴露出來，**不再依賴人類接手者本機跑一遍**。
+
+### 仍待人類接手 / 後續 issue 處理
+
 - [ ] **Azure AD 應用程式註冊** (手動動作，本 repo 無法自動化)。
-  今後可以考慮以 IaC (Bicep / Terraform) 記述這個註冊。
+  詳見 §2。今後可以考慮以 IaC (Bicep / Terraform) 記述這個註冊步驟。
+- [ ] **整合測試初次 CI 跑綠**：本輪推上去後第一次 CI run 若失敗，
+  常見可能原因：
+  1. `record CurrentUserDto` 反序列化 — `System.Net.Http.Json` 預設 `JsonSerializerDefaults.Web`
+     已開 `PropertyNameCaseInsensitive`，理論上 OK；若實測失敗可在
+     `MeEndpointTests` 改用顯式 `JsonSerializerOptions { PropertyNameCaseInsensitive = true }`。
+  2. `CustomWebApplicationFactory` 的 `services.AddAuthentication(defaultScheme: "Test")` 後續呼叫
+     是否成功覆蓋既有 `JwtBearerDefaults.AuthenticationScheme`。若失敗，
+     需要 `services.PostConfigure<AuthenticationOptions>(opt => opt.DefaultScheme = "Test")`。
+- [ ] **JWT 簽章端到端測試**：可考慮再開 `tests/IsoDocs.Api.JwtTests/`，用
+  `Microsoft.IdentityModel.Tokens` 自簽 JWT 驗證真實 JwtBearer middleware 的
+  「過期 / audience 不符 / issuer 不符」三種失敗路徑。本 issue 不強求，留給後續優化。
 - [ ] **App roles 與 IsoDocs Roles 表的映射**。這是 issue #6 [2.2.1] 的議題，
   `MeController` 現在只呈現 Token 中的 raw roles，選擇在 RBAC 落地時再接上。
