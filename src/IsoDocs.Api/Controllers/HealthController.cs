@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace IsoDocs.Api.Controllers;
@@ -7,6 +8,7 @@ namespace IsoDocs.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
+[AllowAnonymous]
 public class HealthController : ControllerBase
 {
     /// <summary>
