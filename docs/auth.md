@@ -18,7 +18,7 @@
 ```
 
 本系統針對 **API mode** (Bearer Token) 設計，沒有 server-side cookie session。
-實際的 OIDC `authorization_code + PKCE` 流程由前端 MSAL.js 走，后端只負責
+實際的 OIDC `authorization_code + PKCE` 流程由前端 MSAL.js 走，後端只負責
 驗證請求上的 access_token。
 
 ## 2. Azure AD 應用程式註冊 (手動)
@@ -62,7 +62,7 @@ dotnet user-secrets --project src/IsoDocs.Api set "AzureAd:Audience"  "api://<ap
 | `DisplayName`        | `name` → `ClaimTypes.Name` | — |
 | `Department`         | `department`  | (需 token configuration optional claim) |
 | `JobTitle`           | `jobTitle`    | (需 token configuration optional claim) |
-| `Roles`              | `roles`＋`ClaimTypes.Role`（完全不重複合併） | — |
+| `Roles`              | `roles`＋`ClaimTypes.Role`（不重複合併） | — |
 | `Scopes`             | `scp` 以空格分隔 | `http://schemas.microsoft.com/identity/claims/scope` |
 
 ## 5. User upsert 規則
@@ -72,24 +72,24 @@ dotnet user-secrets --project src/IsoDocs.Api set "AzureAd:Audience"  "api://<ap
 1. 以 `principal.AzureAdObjectId` 在 `dbo.Users` 查詢。
 2. 存在：呼叫 `User.UpdateProfile(email, displayName, department, jobTitle)`；
    若 `IsActive == false` 則呼叫 `User.Activate()`（Azure AD 為 single source of truth，重出現 = 重新啟用）。
-3. 不存在：`new User(Guid.NewGuid(), oid, email, displayName)` → `UpdateProfile(...)` 补全 dept/title → `Users.Add()`。
+3. 不存在：`new User(Guid.NewGuid(), oid, email, displayName)` → `UpdateProfile(...)` 補全 dept/title → `Users.Add()`。
 4. `SaveChangesAsync()` 一次。`AuditableEntityInterceptor` 自動設 `UpdatedAt`。
 
-多多豐富的邊界條件見 `tests/IsoDocs.Application.UnitTests/Auth/UserSyncServiceTests.cs`。
+更詳盡的邊界條件見 `tests/IsoDocs.Application.UnitTests/Auth/UserSyncServiceTests.cs`。
 
 ## 6. 離職人員同步 (跨 issue 依賴路線圖)
 
 ```
 [Hangfire 排程 (issue #22 [6.3])]
-   └─每日震一次 IUserDeactivationSyncJob (本輪尚未實作)
+   └─每日跑一次 IUserDeactivationSyncJob (本輪尚未實作)
          └─呼叫 GraphServiceClient (issue #23 [6.1]) 拿 Azure AD users
                └─以「本系統有 / Azure AD 已關閉」的使用者集合
                      └─逐個呼 IUserSyncService.DeactivateByAzureObjectIdAsync
 ```
 
-本 issue #2 [2.1.1] 的認可條件「離職人員 Azure AD 失效自動禁用」在本 issue
-中完成「**提供來下游調用的接口 (`DeactivateByAzureObjectIdAsync`)**」；
-實際的排程作業本體交給 issue #22 、#23 一起完工（需 Hangfire 與 Microsoft Graph均到位）。
+本 issue #2 [2.1.1] 的驗收條件「離職人員 Azure AD 失效自動禁用」在本 issue
+中完成「**提供給下游調用的接口 (`DeactivateByAzureObjectIdAsync`)**」；
+實際的排程作業本體交給 issue #22、#23 一起完工（需 Hangfire 與 Microsoft Graph 均到位）。
 
 ## 7. 端點一覽
 
@@ -102,10 +102,14 @@ dotnet user-secrets --project src/IsoDocs.Api set "AzureAd:Audience"  "api://<ap
 
 ## 8. 本輪未完成 / 交出去下輪
 
-- [ ] 整合測試：使用 `WebApplicationFactory<Program>` 加 fake Azure AD JWT 提供者
-  （例如 `Microsoft.AspNetCore.Mvc.Testing` + custom `JwtBearerOptions`）驗證 401/403/200 路徑。
-  需等 sandbox 能裝 .NET SDK 才能跑，與 issue #5 同一個縬其。
-- [ ] Azure AD 應用程式註冊 (手動動作，本 repo 無法自動化)。
-  今後可以考慮以 IaC (Bicep / Terraform) 記描這个註冊。
-- [ ] App roles 與 IsoDocs Roles 表的映射。這是 issue #6 [2.2.1] 的議題，
-  `MeController` 現在只呈現 Token 中的 raw roles，選择在 RBAC 落地時再接上。
+- [x] **整合測試骨架已就位**（issue #2 第三輪補上）：使用 `WebApplicationFactory<Program>` +
+  `TestAuthHandler` 替身 + `FakeUserSyncService`，覆蓋 `/api/health`、`/api/auth/login`、
+  `/api/auth/logout`、`/api/me` 共 8 個案例。詳見 `tests/IsoDocs.Api.IntegrationTests/README.md`。
+  待 sandbox 環境放開或人類在本機跑 `dotnet test` 確認全綠後即可關閉本驗收條件。
+- [ ] **JWT 簽章端到端測試**：可考慮再開 `tests/IsoDocs.Api.JwtTests/`，用
+  `Microsoft.IdentityModel.Tokens` 自簽 JWT 驗證真實 JwtBearer middleware 的「過期 / audience
+  不符 / issuer 不符」三種失敗路徑。本 issue 不強求，留給後續優化。
+- [ ] **Azure AD 應用程式註冊** (手動動作，本 repo 無法自動化)。
+  今後可以考慮以 IaC (Bicep / Terraform) 記述這個註冊。
+- [ ] **App roles 與 IsoDocs Roles 表的映射**。這是 issue #6 [2.2.1] 的議題，
+  `MeController` 現在只呈現 Token 中的 raw roles，選擇在 RBAC 落地時再接上。

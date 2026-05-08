@@ -23,7 +23,7 @@ builder.Services.AddSwaggerGen(options =>
         Description = "ISO 文件管理系統 API"
     });
 
-    // Swagger UI 上提供輸入 Bearer Token 的入口（方便開發者手貼測試 token 試跨口）
+    // Swagger UI 上提供輸入 Bearer Token 的入口（方便開發者手貼 token 試呼端點）
     options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
         Description = "Azure AD Access Token (Bearer)。在 SPA 端以 MSAL 取得後填入 Authorization: Bearer <token>。",
@@ -48,8 +48,9 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 // issue #2 [2.1.1] — Azure AD / Entra ID Bearer Token 認證
-// 設計原則：AzureAd:ClientId 為空時跳過註冊，讓本機開發 (無 Azure AD)、兩個師生事個人跨
-// (未設 connection)、單元測試仍能起服務 / 跳 [Authorize] 績。
+// 設計原則：AzureAd:ClientId 為空時跳過註冊，讓本機開發 (無 Azure AD 環境)、CI 整合測試
+// (未連 Azure AD 也能起 service)、單元測試不受 [Authorize] 阻擋。整合測試會在
+// CustomWebApplicationFactory 中補上假 ClientId，並以 TestAuthHandler 取代 JwtBearer。
 var isAzureAdConfigured = !string.IsNullOrWhiteSpace(builder.Configuration["AzureAd:ClientId"]);
 if (isAzureAdConfigured)
 {
@@ -59,7 +60,7 @@ if (isAzureAdConfigured)
 
     builder.Services.AddAuthorization(options =>
     {
-        // 預設策略：安全預設-deny。未換 [Authorize] 的 controller 也需 [AllowAnonymous] 才能訪問。
+        // 預設策略：安全預設-deny。未掛 [Authorize] 的 controller 仍需 [AllowAnonymous] 才能訪問。
         options.FallbackPolicy = new AuthorizationPolicyBuilder()
             .RequireAuthenticatedUser()
             .Build();
