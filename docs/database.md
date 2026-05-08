@@ -29,7 +29,7 @@
 | Cases | `CaseNodes` | ✅ | 案件節點實例（含 `ModifiedExpectedAt`） |
 | Cases | `CaseActions` | ❌ | 案件動作軌跡（append-only） |
 | Communications | `Comments` | ❌ | 案件留言（軟刪除） |
-| Communications | `Notifications` | ❌ | 通知紀錄（含 `RetryCount`、`LastError`） |
+| Communications | `Notifications` | ❌ | 通知紀錄(含 `RetryCount`、`LastError`） |
 | Attachments | `Attachments` | ❌ | 附件 metadata（檔案本體於 Azure Blob） |
 | Audit | `AuditTrails` | ❌ | 系統層稽核軌跡（與 `CaseActions` 區分） |
 
@@ -97,6 +97,8 @@ builder.ToTable("Cases", t => t.IsTemporal());
 > 啟用 Temporal 的實體：`Users`、`Roles`、`WorkflowTemplates`、`FieldDefinitions`、`DocumentTypes`、`Cases`、`CaseFields`、`CaseNodes`。
 > 不啟用 Temporal 的實體（已有自己的軌跡或 append-only）：`UserRoles`、`Delegations`、`WorkflowNodes`、`Customers`、`CaseActions`、`CaseRelations`、`Comments`、`Notifications`、`Attachments`、`AuditTrails`。
 
+> ⚠ **Cascade 多重路徑**：`CaseAction.CaseNodeId` 在 EF Configuration 中為 `OnDelete(SetNull)`，但 `Cases → CaseNodes (Cascade)` 與 `Cases → CaseActions (Cascade)` 同時存在時，SQL Server 會回 1785（multiple cascade paths）。詳見 §10 與 `docs/sql/initial_schema.sql` 內的修補建議。
+
 ## 6. 取號邏輯（DocumentType.AcquireNext）
 
 格式：`{CompanyCode}-{Code}-{YearTwoDigits}{Sequence:D4}`，例如 `ITCT-F01-260076`。
@@ -108,7 +110,8 @@ builder.ToTable("Cases", t => t.IsTemporal());
 
 ## 7. Migration 操作
 
-> 本輪不在 repo 內 commit Migration 程式碼，因為需要本機 `dotnet` SDK + EF Core CLI 環境執行。請在本機按以下指令產出第一份 Migration。
+> 建表有兩條路徑：**(A) EF Core Migration（正式）** 與 **(B) `docs/sql/initial_schema.sql`（fallback）**。
+> 正式環境一律走 (A)，由 EF Core 維護版本一致性。(B) 提供給沒有 dotnet SDK 的審查／救援場景，詳見 §10。
 
 ### 7.1 第一次安裝 EF Core 工具
 
@@ -116,7 +119,7 @@ builder.ToTable("Cases", t => t.IsTemporal());
 dotnet tool install --global dotnet-ef --version 8.0.10
 ```
 
-### 7.2 從 repo 根目錄執行
+### 7.2 從 repo 根目錄執行（路徑 A）
 
 ```bash
 # 產生 Migration 程式碼到 IsoDocs.Infrastructure/Migrations
@@ -179,8 +182,45 @@ CI/CD 或部署環境建議用環境變數：`ConnectionStrings__DefaultConnecti
 
 ## 9. 後續工作
 
-- [ ] 於本機執行 `dotnet ef migrations add InitialSchema` 產生 Migration 程式碼並提交（本輪未做）。
+- [ ] 於本機執行 `dotnet ef migrations add InitialSchema` 產生 Migration C# 檔並提交（PR 預計同步調整 `CaseActionConfiguration.cs`，將 `CaseNodeId` 由 `SetNull` 改為 `NoAction`，避免 SQL Server 多重 cascade path 問題；理由見 §10）。
+- [ ] 執行 `dotnet ef migrations script -o initial_ef_generated.sql` 與 `docs/sql/initial_schema.sql` 做 diff，確認語意對齊。
 - [ ] 撰寫 Repository / UnitOfWork 抽象（將於 issue #9 [5.2.1] 一併處理）。
 - [ ] 補上 Domain 內的補充實體：`Notification.PayloadJson` 結構文件、`Permissions` JSON schema。
 - [ ] 撰寫整合測試所需的 `WebApplicationFactory` 設定（搭配 Testcontainers SQL Server）。
 - [ ] 評估是否要把 `CaseActions` 改為 SQL Server `EVENTSTREAM` 或仍維持單表（壓力測試後再決定）。
+
+## 10. SQL DDL Fallback（`docs/sql/initial_schema.sql`）
+
+提供一份不依賴 dotnet SDK 也能執行的「語意對等」原始 DDL 腳本，位於 `docs/sql/initial_schema.sql`。它依 `IsoDocs.Infrastructure/Persistence/Configurations/*.cs` 反推產生，含：
+
+1. **18 張資料表**：欄位、型別、長度、nullability 全對齊 Configuration。
+2. **8 張 Temporal History 表**：採 EF Core 8 預設命名 `{TableName}History`，period 欄位為 `PeriodStart` / `PeriodEnd`（HIDDEN）。
+3. **Foreign Keys**：以 `ALTER TABLE` 集中宣告，便於審查 cascade 行為。
+4. **Indexes**：含所有 `HasIndex(...).IsUnique()` 與一般索引。
+
+### 10.1 適用場景
+
+- DBA / 資安／架構師審查 schema，無需安裝 dotnet SDK。
+- 緊急 / 沙箱環境想快速重建空資料庫。
+- 與 `dotnet ef migrations script` 產出做交叉比對，捕捉 EF Configuration 與實體標註不一致的細節。
+
+### 10.2 不適用場景（非常重要）
+
+- **正式環境的 schema 演進**：請仍以 EF Core Migration（C# 檔）為唯一真相。本 SQL 腳本不在 EF 的版本控制裡，跑完不會有 `__EFMigrationsHistory` 紀錄，後續 `database update` 會以為資料庫是空的而再嘗試建表。
+
+### 10.3 已知 deviation：CaseAction.CaseNodeId
+
+`CaseActionConfiguration.cs` 將 `CaseNodeId` 設為 `OnDelete(DeleteBehavior.SetNull)`，但 SQL Server 不允許「同一個 root 透過兩條路徑都對 `CaseActions` 執行 cascading action」（`Cases → CaseActions (Cascade)` 與 `Cases → CaseNodes → CaseActions (SetNull)`）—— 會在建立 FK 時回錯誤 1785。
+
+`docs/sql/initial_schema.sql` 為了能一鍵跑完，已將 `FK_CaseActions_CaseNodes_CaseNodeId` 改為 `ON DELETE NO ACTION`。EF Migration 端建議於下一輪一併同步調整：
+
+```diff
+ // CaseActionConfiguration.cs
+ builder.HasOne<CaseNode>()
+     .WithMany()
+     .HasForeignKey(x => x.CaseNodeId)
+-    .OnDelete(DeleteBehavior.SetNull);
++    .OnDelete(DeleteBehavior.NoAction);
+```
+
+實務上案件不會被 hard-delete（透過 `Status = Voided` 軟廢），這條 FK 的 cascade 行為其實不會被觸發，所以 `NoAction` 不會造成資料風險。
