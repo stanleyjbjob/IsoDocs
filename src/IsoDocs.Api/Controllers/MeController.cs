@@ -1,4 +1,3 @@
-using IsoDocs.Api.Auth;
 using IsoDocs.Application.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,7 +9,7 @@ namespace IsoDocs.Api.Controllers;
 ///
 /// 服務流程：
 /// 1. ASP.NET Core auth pipeline 驗證 Bearer Token。
-/// 2. 從 <see cref="ClaimsPrincipal"/> 解析出 <see cref="AzureAdUserPrincipal"/>。
+/// 2. 從 <see cref="System.Security.Claims.ClaimsPrincipal"/> 解析出 <see cref="AzureAdUserPrincipal"/>。
 /// 3. 呼叫 <see cref="IUserSyncService.UpsertFromAzureAdAsync"/> 同步 User 表。
 /// 4. 若 User 在本系統被停用 (IsActive=false)，回 403 + AUTH/USER_DEACTIVATED。
 /// 5. 否則回 <see cref="CurrentUserDto"/>。
@@ -34,7 +33,6 @@ public class MeController : ControllerBase
 
         if (!principal.IsAuthenticated)
         {
-            // 理論上 [Authorize] 不會讓未認證請求走到這裡，但若 token 缺 oid claim 也該拍到這條路。
             return Unauthorized(new
             {
                 code = AuthErrorCodes.MissingObjectId,
@@ -63,8 +61,6 @@ public class MeController : ControllerBase
             JobTitle: user.JobTitle,
             IsActive: user.IsActive,
             IsSystemAdmin: user.IsSystemAdmin,
-            // 本 issue 只同步到這裡；UserRole/Role 顯示在 issue #6 [2.2.1] 裡補上。
-            // 目前呈現 Token 裡出現的 roles claim（例如 App roles）作為零時資訊。
             Roles: principal.Roles,
             Scopes: principal.Scopes,
             CreatedAt: user.CreatedAt,

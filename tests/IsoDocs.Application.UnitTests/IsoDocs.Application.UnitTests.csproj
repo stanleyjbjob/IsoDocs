@@ -13,10 +13,13 @@
     <PackageReference Include="FluentAssertions" Version="6.12.1" />
     <PackageReference Include="NSubstitute" Version="5.1.0" />
     <PackageReference Include="coverlet.collector" Version="6.0.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\IsoDocs.Application\IsoDocs.Application.csproj" />
+    <ProjectReference Include="..\..\src\IsoDocs.Infrastructure\IsoDocs.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
