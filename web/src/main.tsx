@@ -17,6 +17,7 @@ import { msalInstance } from './lib/msalConfig';
 import { apiClient } from './api/client';
 import { installMockRbacInterceptor } from './api/mockRoles';
 import { installMockFieldsInterceptor } from './api/mockFieldDefinitions';
+import { installMockTemplatesInterceptor } from './api/mockWorkflowTemplates';
 
 dayjs.locale('zh-tw');
 
@@ -38,6 +39,13 @@ async function bootstrap(target: HTMLElement) {
     installMockFieldsInterceptor(apiClient);
     // eslint-disable-next-line no-console
     console.info('[IsoDocs] Mock field-definitions interceptor enabled (VITE_USE_MOCK_FIELDS=true)');
+  }
+
+  // 條件啟用 mock workflow-templates interceptor（issue #13 [3.2.2]），讓前端在 #12 未落地前可獨立開發
+  if (import.meta.env.VITE_USE_MOCK_TEMPLATES === 'true') {
+    installMockTemplatesInterceptor(apiClient);
+    // eslint-disable-next-line no-console
+    console.info('[IsoDocs] Mock workflow-templates interceptor enabled (VITE_USE_MOCK_TEMPLATES=true)');
   }
 
   // MSAL v3+ 強制要求先 initialize() 再使用任何 API

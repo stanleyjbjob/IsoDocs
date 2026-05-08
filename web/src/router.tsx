@@ -7,6 +7,7 @@ import AdminLayout from './pages/admin/AdminLayout';
 import RolesPage from './pages/admin/RolesPage';
 import UsersPage from './pages/admin/UsersPage';
 import FieldDefinitionsPage from './pages/admin/FieldDefinitionsPage';
+import WorkflowTemplatesPage from './pages/admin/WorkflowTemplatesPage';
 import type { ReactNode } from 'react';
 
 /**
@@ -51,6 +52,8 @@ export function AppRouter() {
         <Route path="users" element={<UsersPage />} />
         {/* 自訂欄位管理 (issue #11 [3.1.2]) */}
         <Route path="fields" element={<FieldDefinitionsPage />} />
+        {/* 流程範本設計器 (issue #13 [3.2.2]) */}
+        <Route path="workflow-templates" element={<WorkflowTemplatesPage />} />
       </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
