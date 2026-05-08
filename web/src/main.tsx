@@ -16,6 +16,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { msalInstance } from './lib/msalConfig';
 import { apiClient } from './api/client';
 import { installMockRbacInterceptor } from './api/mockRoles';
+import { installMockFieldsInterceptor } from './api/mockFieldDefinitions';
 
 dayjs.locale('zh-tw');
 
@@ -25,11 +26,18 @@ if (!rootEl) {
 }
 
 async function bootstrap(target: HTMLElement) {
-  // 闋位啟用 mock RBAC interceptor，讓前端在 #6 [2.2.1] 後端未落地前可獨立開發
+  // 條件啟用 mock RBAC interceptor（issue #8 [2.2.2]），讓前端在 #6 後端未落地前可獨立開發
   if (import.meta.env.VITE_USE_MOCK_RBAC === 'true') {
     installMockRbacInterceptor(apiClient);
     // eslint-disable-next-line no-console
     console.info('[IsoDocs] Mock RBAC interceptor enabled (VITE_USE_MOCK_RBAC=true)');
+  }
+
+  // 條件啟用 mock field-definitions interceptor（issue #11 [3.1.2]），讓前端在 #7 未落地前可獨立開發
+  if (import.meta.env.VITE_USE_MOCK_FIELDS === 'true') {
+    installMockFieldsInterceptor(apiClient);
+    // eslint-disable-next-line no-console
+    console.info('[IsoDocs] Mock field-definitions interceptor enabled (VITE_USE_MOCK_FIELDS=true)');
   }
 
   // MSAL v3+ 強制要求先 initialize() 再使用任何 API

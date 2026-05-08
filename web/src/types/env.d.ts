@@ -9,6 +9,8 @@ interface ImportMetaEnv {
   readonly VITE_AZURE_API_SCOPE?: string;
   /** issue #8 [2.2.2]：啟用 RBAC mock interceptor（'true' / 'false'） */
   readonly VITE_USE_MOCK_RBAC?: string;
+  /** issue #11 [3.1.2]：啟用自訂欄位 mock interceptor（'true' / 'false'） */
+  readonly VITE_USE_MOCK_FIELDS?: string;
 }
 
 interface ImportMeta {

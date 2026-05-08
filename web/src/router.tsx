@@ -6,6 +6,7 @@ import NotFoundPage from './pages/NotFoundPage';
 import AdminLayout from './pages/admin/AdminLayout';
 import RolesPage from './pages/admin/RolesPage';
 import UsersPage from './pages/admin/UsersPage';
+import FieldDefinitionsPage from './pages/admin/FieldDefinitionsPage';
 import type { ReactNode } from 'react';
 
 /**
@@ -48,6 +49,8 @@ export function AppRouter() {
         <Route index element={<Navigate to="/admin/roles" replace />} />
         <Route path="roles" element={<RolesPage />} />
         <Route path="users" element={<UsersPage />} />
+        {/* 自訂欄位管理 (issue #11 [3.1.2]) */}
+        <Route path="fields" element={<FieldDefinitionsPage />} />
       </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
