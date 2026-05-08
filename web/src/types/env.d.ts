@@ -7,6 +7,8 @@ interface ImportMetaEnv {
   readonly VITE_AZURE_TENANT_ID?: string;
   readonly VITE_AZURE_REDIRECT_URI?: string;
   readonly VITE_AZURE_API_SCOPE?: string;
+  /** issue #8 [2.2.2]：啟用 RBAC mock interceptor（'true' / 'false'） */
+  readonly VITE_USE_MOCK_RBAC?: string;
 }
 
 interface ImportMeta {
