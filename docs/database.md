@@ -97,7 +97,7 @@ builder.ToTable("Cases", t => t.IsTemporal());
 > 啟用 Temporal 的實體：`Users`、`Roles`、`WorkflowTemplates`、`FieldDefinitions`、`DocumentTypes`、`Cases`、`CaseFields`、`CaseNodes`。
 > 不啟用 Temporal 的實體（已有自己的軌跡或 append-only）：`UserRoles`、`Delegations`、`WorkflowNodes`、`Customers`、`CaseActions`、`CaseRelations`、`Comments`、`Notifications`、`Attachments`、`AuditTrails`。
 
-> ⚠ **Cascade 多重路徑**：`CaseAction.CaseNodeId` 在 EF Configuration 中為 `OnDelete(SetNull)`，但 `Cases → CaseNodes (Cascade)` 與 `Cases → CaseActions (Cascade)` 同時存在時，SQL Server 會回 1785（multiple cascade paths）。詳見 §10 與 `docs/sql/initial_schema.sql` 內的修補建議。
+> ✅ **Cascade 多重路徑（已修補）**：`Cases → CaseNodes (Cascade)` 與 `Cases → CaseActions (Cascade)` 同時存在會撞 SQL Server 1785（multiple cascade paths）。`CaseActionConfiguration.cs` 已將 `CaseNodeId` 設為 `OnDelete(NoAction)`（不再是 `SetNull`），與 `docs/sql/initial_schema.sql` 對齊。詳見 §10.3。
 
 ## 6. 取號邏輯（DocumentType.AcquireNext）
 
@@ -182,7 +182,7 @@ CI/CD 或部署環境建議用環境變數：`ConnectionStrings__DefaultConnecti
 
 ## 9. 後續工作
 
-- [ ] 於本機執行 `dotnet ef migrations add InitialSchema` 產生 Migration C# 檔並提交（PR 預計同步調整 `CaseActionConfiguration.cs`，將 `CaseNodeId` 由 `SetNull` 改為 `NoAction`，避免 SQL Server 多重 cascade path 問題；理由見 §10）。
+- [ ] 於本機執行 `dotnet ef migrations add InitialSchema` 產生 Migration C# 檔並提交（cascade 修補已於 commit `eec4a00` 套用，此步只需跑 EF CLI）。
 - [ ] 執行 `dotnet ef migrations script -o initial_ef_generated.sql` 與 `docs/sql/initial_schema.sql` 做 diff，確認語意對齊。
 - [ ] 撰寫 Repository / UnitOfWork 抽象（將於 issue #9 [5.2.1] 一併處理）。
 - [ ] 補上 Domain 內的補充實體：`Notification.PayloadJson` 結構文件、`Permissions` JSON schema。
@@ -208,19 +208,17 @@ CI/CD 或部署環境建議用環境變數：`ConnectionStrings__DefaultConnecti
 
 - **正式環境的 schema 演進**：請仍以 EF Core Migration（C# 檔）為唯一真相。本 SQL 腳本不在 EF 的版本控制裡，跑完不會有 `__EFMigrationsHistory` 紀錄，後續 `database update` 會以為資料庫是空的而再嘗試建表。
 
-### 10.3 已知 deviation：CaseAction.CaseNodeId
+### 10.3 CaseAction.CaseNodeId（已 reconciled）
 
-`CaseActionConfiguration.cs` 將 `CaseNodeId` 設為 `OnDelete(DeleteBehavior.SetNull)`，但 SQL Server 不允許「同一個 root 透過兩條路徑都對 `CaseActions` 執行 cascading action」（`Cases → CaseActions (Cascade)` 與 `Cases → CaseNodes → CaseActions (SetNull)`）—— 會在建立 FK 時回錯誤 1785。
+歷史脈絡：早期 `CaseActionConfiguration.cs` 將 `CaseNodeId` 設為 `OnDelete(DeleteBehavior.SetNull)`，但 SQL Server 不允許「同一個 root 透過兩條路徑都對 `CaseActions` 執行 cascading action」（`Cases → CaseActions (Cascade)` 與 `Cases → CaseNodes → CaseActions (SetNull)`）—— 會在建立 FK 時回 1785（multiple cascade paths）。
 
-`docs/sql/initial_schema.sql` 為了能一鍵跑完，已將 `FK_CaseActions_CaseNodes_CaseNodeId` 改為 `ON DELETE NO ACTION`。EF Migration 端建議於下一輪一併同步調整：
+修補：commit `eec4a00`（issue #5）已將 EF Configuration 改為 `OnDelete(DeleteBehavior.NoAction)`，與 `docs/sql/initial_schema.sql` 中 `FK_CaseActions_CaseNodes_CaseNodeId ... ON DELETE NO ACTION` 對齊。實務上案件不會被 hard-delete（透過 `Status = Voided` 軟廢），此 FK 的 cascade 行為其實不會被觸發，所以 `NoAction` 不會造成資料風險。
 
 ```diff
- // CaseActionConfiguration.cs
+ // CaseActionConfiguration.cs（修補後）
  builder.HasOne<CaseNode>()
      .WithMany()
      .HasForeignKey(x => x.CaseNodeId)
 -    .OnDelete(DeleteBehavior.SetNull);
 +    .OnDelete(DeleteBehavior.NoAction);
 ```
-
-實務上案件不會被 hard-delete（透過 `Status = Voided` 軟廢），這條 FK 的 cascade 行為其實不會被觸發，所以 `NoAction` 不會造成資料風險。
