@@ -12,7 +12,7 @@ const { Title } = Typography;
  * 管理者區 layout。
  *
  * - 對應驗收條件「操作權限受 RBAC 控管」：非 admin 進來會看到 403
- * - 左側 sidebar 提供【角色】【使用者】入口
+ * - 左側 sidebar 提供【角色】【使用者】【自訂欄位】入口
  * - 在載入角色資料期間（需這份資料來決定 isAdmin）顯示 Spin
  */
 export default function AdminLayout() {
@@ -25,12 +25,14 @@ export default function AdminLayout() {
   const selectedKeys = useMemo(() => {
     if (location.pathname.startsWith('/admin/roles')) return ['roles'];
     if (location.pathname.startsWith('/admin/users')) return ['users'];
+    if (location.pathname.startsWith('/admin/fields')) return ['fields'];
     return [];
   }, [location.pathname]);
 
   const menuItems: MenuProps['items'] = [
     { key: 'roles', label: <Link to="/admin/roles">角色與權限</Link> },
     { key: 'users', label: <Link to="/admin/users">使用者與指派</Link> },
+    { key: 'fields', label: <Link to="/admin/fields">自訂欄位</Link> },
   ];
 
   if (isLoading) {

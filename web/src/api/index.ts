@@ -23,3 +23,20 @@ export {
   useHasAnyPermission,
   useIsAdmin,
 } from './permissionGate';
+
+// issue #11 [3.1.2] 自訂欄位
+export type {
+  FieldDefinition,
+  FieldDefinitionCreatePayload,
+  FieldDefinitionUpdatePayload,
+  FieldDefinitionVersion,
+} from './fieldDefinitions';
+export {
+  listFieldDefinitions,
+  createFieldDefinition,
+  updateFieldDefinition,
+  activateFieldDefinition,
+  deactivateFieldDefinition,
+  listFieldDefinitionVersions,
+} from './fieldDefinitions';
+export { installMockFieldsInterceptor } from './mockFieldDefinitions';
