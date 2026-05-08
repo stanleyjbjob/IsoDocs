@@ -21,10 +21,15 @@ public class CaseActionConfiguration : IEntityTypeConfiguration<CaseAction>
             .HasForeignKey(x => x.CaseId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        // CaseNodeId: NoAction（不是 SetNull）。
+        // 原因：Cases → CaseNodes (Cascade) 與 Cases → CaseActions (Cascade) 並存，
+        // 若這條 FK 設 SetNull，SQL Server 會以 1785（multiple cascade paths）拒絕建表。
+        // 實務上 Case 採軟廢（Status = Voided），不會 hard-delete，NoAction 不影響語意。
+        // 詳情見 docs/database.md §10.3。
         builder.HasOne<CaseNode>()
             .WithMany()
             .HasForeignKey(x => x.CaseNodeId)
-            .OnDelete(DeleteBehavior.SetNull);
+            .OnDelete(DeleteBehavior.NoAction);
 
         builder.HasOne<User>()
             .WithMany()
