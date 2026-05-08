@@ -6,7 +6,8 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 namespace IsoDocs.Infrastructure.Persistence.Interceptors;
 
 /// <summary>
-/// SaveChanges 攜截器：自動為繼承 Entity&lt;T&gt; 的實體設定 CreatedAt / UpdatedAt。
+/// SaveChanges 攜截器：自動為繼承 Entity&lt;T&gt; 的實體設定 UpdatedAt。
+/// CreatedAt 由實體預設值貾責。
 /// </summary>
 public class AuditableEntityInterceptor : SaveChangesInterceptor
 {
@@ -30,26 +31,12 @@ public class AuditableEntityInterceptor : SaveChangesInterceptor
         var now = DateTimeOffset.UtcNow;
         foreach (EntityEntry entry in context.ChangeTracker.Entries())
         {
-            if (entry.Entity is not IHasTimestamps entity) continue;
+            if (entry.Entity is not IHasTimestamps timestamped) continue;
 
-            switch (entry.State)
+            if (entry.State == EntityState.Modified)
             {
-                case EntityState.Added:
-                    // CreatedAt 由實體預設值貾責，這裡不覆寫
-                    break;
-                case EntityState.Modified:
-                    entity.SetUpdatedAt(now);
-                    break;
+                timestamped.SetUpdatedAt(now);
             }
         }
     }
-}
-
-/// <summary>
-/// 實體需實作此介面才能被 interceptor 識別。Entity&lt;T&gt; 在 Domain 層以 protected 設定 UpdatedAt，
-/// 為避免 Domain 身分泄漏，本介面以顯示衡接。
-/// </summary>
-public interface IHasTimestamps
-{
-    void SetUpdatedAt(DateTimeOffset updatedAt);
 }
