@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { App, Button, DatePicker, Form, Input, Modal, Select, Space } from 'antd';
 import dayjs from 'dayjs';
@@ -289,14 +289,20 @@ function SpawnChildModal({
   const { message } = App.useApp();
   const [form] = Form.useForm<{ templateId: string; title: string; description?: string }>();
   const queryClient = useQueryClient();
-  const templates = queryClient.getQueryData<{ items: { id: string; name: string; code: string }[] }>([
-    'workflow-templates',
-    'list',
-  ]);
+  const cachedTemplates = queryClient.getQueryData<{
+    items: Array<{ id: string; name: string; code: string }>;
+  }>(['workflow-templates', 'list']);
   const fetchTemplates = useMutation({
     mutationFn: () => workflowTemplatesApi.list(),
     onSuccess: (data) => queryClient.setQueryData(['workflow-templates', 'list'], data),
   });
+  // 用 useEffect 取代 antd Modal afterOpenChange（在較舊的 antd v5 不一定存在）
+  useEffect(() => {
+    if (open && !cachedTemplates && !fetchTemplates.isPending) {
+      fetchTemplates.mutate();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const mutation = useMutation({
     mutationFn: (v: { templateId: string; title: string; description?: string }) =>
@@ -316,7 +322,6 @@ function SpawnChildModal({
       okText="建立子流程"
       cancelText="取消"
       onCancel={onClose}
-      afterOpenChange={(o) => o && !templates && fetchTemplates.mutate()}
       onOk={async () => {
         const v = await form.validateFields();
         mutation.mutate(v);
@@ -328,7 +333,7 @@ function SpawnChildModal({
         <Form.Item label="子流程範本" name="templateId" rules={[{ required: true }]}>
           <Select
             placeholder="選擇子流程要使用的範本"
-            options={(templates?.items ?? []).map((t) => ({ value: t.id, label: t.name }))}
+            options={(cachedTemplates?.items ?? []).map((t) => ({ value: t.id, label: t.name }))}
             loading={fetchTemplates.isPending}
           />
         </Form.Item>

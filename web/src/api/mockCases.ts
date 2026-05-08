@@ -140,10 +140,35 @@ function recomputeCurrent(c: CaseDetail) {
   c.currentAssigneeUserId = cur?.assigneeUserId ?? null;
 }
 
+/**
+ * Explicit pick 代替 destructure-rest。與 #13 commit 79856c21 同樣的理由：
+ * tsconfig noUnusedLocals + ESLint 對解構變數無 ignorePattern。
+ */
 function toSummary(c: CaseDetail): CaseSummary {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { description, fields, nodes, actions, relations, currentNodeId, ...rest } = c;
-  return rest;
+  return {
+    id: c.id,
+    caseNumber: c.caseNumber,
+    title: c.title,
+    status: c.status,
+    templateId: c.templateId,
+    templateCode: c.templateCode,
+    templateName: c.templateName,
+    templateVersion: c.templateVersion,
+    documentTypeCode: c.documentTypeCode,
+    customerId: c.customerId,
+    customerName: c.customerName,
+    initiatorUserId: c.initiatorUserId,
+    initiatorName: c.initiatorName,
+    initiatedAt: c.initiatedAt,
+    originalExpectedAt: c.originalExpectedAt,
+    expectedCompletionAt: c.expectedCompletionAt,
+    completedAt: c.completedAt,
+    voidedAt: c.voidedAt,
+    customVersion: c.customVersion,
+    currentNodeKey: c.currentNodeKey,
+    currentAssigneeName: c.currentAssigneeName,
+    currentAssigneeUserId: c.currentAssigneeUserId,
+  };
 }
 
 function logAction(
