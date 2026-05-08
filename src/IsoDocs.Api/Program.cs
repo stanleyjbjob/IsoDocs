@@ -63,4 +63,4 @@ app.Run();
 /// <summary>
 /// 提供給整合測試使用的 Program 進入點。
 /// </summary>
-public partial class Program;
+public partial class Program { }
