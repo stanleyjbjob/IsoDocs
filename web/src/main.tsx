@@ -18,6 +18,7 @@ import { apiClient } from './api/client';
 import { installMockRbacInterceptor } from './api/mockRoles';
 import { installMockFieldsInterceptor } from './api/mockFieldDefinitions';
 import { installMockTemplatesInterceptor } from './api/mockWorkflowTemplates';
+import { installMockCasesInterceptor } from './api/mockCases';
 
 dayjs.locale('zh-tw');
 
@@ -46,6 +47,11 @@ async function bootstrap(target: HTMLElement) {
     installMockTemplatesInterceptor(apiClient);
     // eslint-disable-next-line no-console
     console.info('[IsoDocs] Mock workflow-templates interceptor enabled (VITE_USE_MOCK_TEMPLATES=true)');
+  }
+
+  // 條件啟用 mock cases interceptor（issue #21 [5.5]），讓前端在 #9/#15/#17/#18/#20 未落地前可獨立開發
+  if (import.meta.env.VITE_USE_MOCK_CASES === 'true') {
+    installMockCasesInterceptor(apiClient);
   }
 
   // MSAL v3+ 強制要求先 initialize() 再使用任何 API

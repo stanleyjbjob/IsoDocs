@@ -30,13 +30,13 @@ export default function CaseCreatePage() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | undefined>();
 
   const { data: templates } = useQuery({
-    queryKey: ['workflow-templates', { active: true }],
-    queryFn: () => workflowTemplatesApi.list({ activeOnly: true }),
+    queryKey: ['workflow-templates', 'list'],
+    queryFn: () => workflowTemplatesApi.list(),
   });
 
   const { data: fieldDefs } = useQuery({
-    queryKey: ['field-definitions', { active: true }],
-    queryFn: () => fieldDefinitionsApi.list({ activeOnly: true }),
+    queryKey: ['field-definitions', 'list'],
+    queryFn: () => fieldDefinitionsApi.list(),
   });
 
   const selectedTemplate = useMemo(
@@ -44,7 +44,7 @@ export default function CaseCreatePage() {
     [templates, selectedTemplateId],
   );
 
-  // 選定範本後自動帶入 documentTypeCode (預設由範本推斷，本輪以簡化設計使用 templateCode 首 4 碼)
+  // 選定範本後自動帶入 documentTypeCode
   useEffect(() => {
     if (selectedTemplate) {
       form.setFieldsValue({ documentTypeCode: defaultDocTypeCode(selectedTemplate.code) });
@@ -65,7 +65,7 @@ export default function CaseCreatePage() {
     const v = await form.validateFields();
     const fieldValues = Object.entries(v.fieldValues ?? {}).map(([fieldDefinitionId, value]) => ({
       fieldDefinitionId,
-      value: value instanceof dayjs ? (value as unknown as dayjs.Dayjs).toISOString() : value,
+      value: dayjs.isDayjs(value) ? value.toISOString() : value,
     }));
     createMutation.mutate({
       templateId: v.templateId,
@@ -80,17 +80,28 @@ export default function CaseCreatePage() {
     });
   };
 
-  // 打包成 DynamicField
+  // 打包成 DynamicField (容忍 fieldDefinitions 的型別可能未包含 helpText)
   const dynamicFields: DynamicField[] = useMemo(() => {
-    return (fieldDefs?.items ?? []).map((f) => ({
-      fieldDefinitionId: f.id,
-      code: f.code,
-      label: f.label,
-      fieldType: f.fieldType,
-      required: f.required ?? false,
-      helpText: f.helpText,
-      config: f.config,
-    }));
+    return (fieldDefs?.items ?? []).map((f) => {
+      const anyF = f as unknown as {
+        id: string;
+        code: string;
+        label: string;
+        fieldType: string;
+        required?: boolean;
+        helpText?: string;
+        config?: DynamicField['config'];
+      };
+      return {
+        fieldDefinitionId: anyF.id,
+        code: anyF.code,
+        label: anyF.label,
+        fieldType: anyF.fieldType,
+        required: anyF.required ?? false,
+        helpText: anyF.helpText,
+        config: anyF.config,
+      };
+    });
   }, [fieldDefs]);
 
   return (
@@ -181,7 +192,7 @@ export default function CaseCreatePage() {
         {selectedTemplate && (
           <Card size="small" title="節點預覽 (依選定範本)" style={{ marginBottom: 16 }}>
             <Space wrap>
-              {selectedTemplate.nodes.map((n) => (
+              {(selectedTemplate.nodes ?? []).map((n) => (
                 <Space key={n.nodeKey} size={2}>
                   <span style={{ color: '#999' }}>{n.label}</span>
                   <span style={{ color: '#ccc' }}>→</span>
@@ -203,7 +214,7 @@ export default function CaseCreatePage() {
 }
 
 function defaultDocTypeCode(templateCode: string): string {
-  // 極簡化：依範本代碼推斷。實際应由範本模型帶出 documentTypeCode。
+  // 極簡化：依範本代碼推斷。實際應由範本模型帶出 documentTypeCode。
   if (templateCode.startsWith('work-request')) return 'F01';
   if (templateCode.startsWith('spec-change')) return 'F03';
   if (templateCode.startsWith('customer-feedback')) return 'F05';

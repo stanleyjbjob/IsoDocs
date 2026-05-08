@@ -291,11 +291,11 @@ function SpawnChildModal({
   const queryClient = useQueryClient();
   const templates = queryClient.getQueryData<{ items: { id: string; name: string; code: string }[] }>([
     'workflow-templates',
-    { active: true },
+    'list',
   ]);
   const fetchTemplates = useMutation({
-    mutationFn: () => workflowTemplatesApi.list({ activeOnly: true }),
-    onSuccess: (data) => queryClient.setQueryData(['workflow-templates', { active: true }], data),
+    mutationFn: () => workflowTemplatesApi.list(),
+    onSuccess: (data) => queryClient.setQueryData(['workflow-templates', 'list'], data),
   });
 
   const mutation = useMutation({
@@ -383,7 +383,6 @@ function ReopenModal({
       }}
       confirmLoading={mutation.isPending}
       width={560}
-      initialFocus="title"
     >
       <div style={{ marginBottom: 12, color: '#999' }}>原案：{parentTitle}</div>
       <Form form={form} layout="vertical" initialValues={{ title: `重開：${parentTitle}` }}>
