@@ -36,7 +36,7 @@ import WorkflowTemplatePublishConfirmModal from './WorkflowTemplatePublishConfir
 const { Title, Paragraph } = Typography;
 
 interface DraftNode extends WorkflowNode {
-  /** UI 內部用的連續誤 ID（刷新不變） */
+  /** UI 內部用的連續性 ID（刷新不變） */
   uiId: string;
 }
 
@@ -53,6 +53,19 @@ function toDraftNodes(nodes: WorkflowNode[]): DraftNode[] {
 
 function renumber(nodes: DraftNode[]): DraftNode[] {
   return nodes.map((n, i) => ({ ...n, nodeOrder: i + 1 }));
+}
+
+/** 把 DraftNode 轉回 API 可接受的 WorkflowNode（明確拋掉 uiId，避免 noUnusedLocals 旗標）。 */
+function toApiNode(n: DraftNode): WorkflowNode {
+  return {
+    nodeOrder: n.nodeOrder,
+    nodeKey: n.nodeKey,
+    label: n.label,
+    nodeType: n.nodeType,
+    requiredRoleId: n.requiredRoleId,
+    description: n.description,
+    expectedHours: n.expectedHours,
+  };
 }
 
 export interface WorkflowTemplateDesignerDrawerProps {
@@ -134,7 +147,7 @@ export default function WorkflowTemplateDesignerDrawer({
 
   const addNode = () => {
     setNodes((prev) => {
-      // 插入在倍數第 2 個位置，避免插到 start/end 之外
+      // 插入在倒數第 2 個位置，避免插到 start/end 之外
       const insertIdx = Math.max(prev.length - 1, 1);
       const next = prev.slice();
       next.splice(insertIdx, 0, {
@@ -178,8 +191,7 @@ export default function WorkflowTemplateDesignerDrawer({
   const saveDraftMutation = useMutation({
     mutationFn: async () => {
       const values = await form.validateFields();
-      // 剩下交給的是同一個 values + nodes
-      const payloadNodes: WorkflowNode[] = nodes.map(({ uiId: _, ...rest }) => rest);
+      const payloadNodes: WorkflowNode[] = nodes.map(toApiNode);
       if (mode === 'create') {
         return createWorkflowTemplate({
           code: values.code,
