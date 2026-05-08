@@ -1,7 +1,7 @@
 # 自訂欄位管理前端 UI（issue #11 [3.1.2]）
 
 對應 issue：[#11 [3.1.2] 建立自訂欄位管理前端介面](https://github.com/stanleyjbjob/IsoDocs/issues/11)
-後端對位：[#7 [3.1.1] 實作自訂欄位定義與版本隴離機制](https://github.com/stanleyjbjob/IsoDocs/issues/7)
+後端對位：[#7 [3.1.1] 實作自訂欄位定義與版本隔離機制](https://github.com/stanleyjbjob/IsoDocs/issues/7)
 
 ## 1. 架構概觀
 
@@ -44,7 +44,7 @@ graph LR
 
 ### 3.2 類型特定 config
 
-| FieldType | 可用 config keys | 訪計求 |
+| FieldType | 可用 config keys | 備註 |
 | --- | --- | --- |
 | `text` | `maxLength` | 單行短文字 |
 | `textarea` | `rows`, `maxLength` | 多行文字 |
@@ -54,7 +54,7 @@ graph LR
 | `select` / `multiselect` | `options[]`, `allowCustom` | 下拉選項 |
 | `user` | `restrictedToRoleIds[]` | 使用者選擇器 |
 
-## 4. 版本隴離機制
+## 4. 版本隔離機制
 
 ```mermaid
 sequenceDiagram
@@ -72,7 +72,7 @@ sequenceDiagram
   Note over Admin,DB: 歷史案件 reference 舊版 FieldVersion，不受影響
 ```
 
-這個設計讓「進行中案件」仍然能看到當初建立時的欄位設定，敢改變需要重新進行「案件資料遛迴」（這是 #7 的職責，前端不處理）。
+這個設計讓「進行中案件」仍然能看到當初建立時的欄位設定。若要改變既有案件的欄位設定，需要重新進行「案件資料回填」（這是 #7 的職責，前端不處理）。
 
 ## 5. RBAC 控管
 
@@ -91,15 +91,15 @@ VITE_USE_MOCK_FIELDS=true   # 本 issue
 VITE_USE_MOCK_FIELDS=false
 ```
 
-Mock interceptor 只攔截 `/field-definitions*` 端點，其他請求一律放行。並與 #8 的 `/roles*` mock 互不影響。
+Mock interceptor 只攔截 `/field-definitions*` 端點，其他請求一律放行。也與 #8 的 `/roles*` mock 互不影響。
 
-## 7. 與 #7 銘接
+## 7. 與 #7 銜接
 
 #7 落地後，前端主要要驗證：
 
 1. `FieldDefinition` 型別與後端回傳結構一致（特別是 `config` JSON）
-2. `PUT` 後後端是否返回 包含新 version 的 FieldDefinition
-3. `GET /versions` 是否並並並並並並並並並並並取 changeNote
+2. `PUT` 後後端是否返回包含新 version 的 FieldDefinition
+3. `GET /versions` 是否能正確回傳 changeNote
 
 ## 8. 驗收條件對照
 
