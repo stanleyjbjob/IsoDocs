@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>IsoDocs.Api</RootNamespace>
+    <AssemblyName>IsoDocs.Api</AssemblyName>
+    <UserSecretsId>isodocs-api-dev-secrets</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.10" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.8.1" />
+    <PackageReference Include="FluentValidation" Version="11.10.0" />
+    <PackageReference Include="MediatR" Version="12.4.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\IsoDocs.Application\IsoDocs.Application.csproj" />
+    <ProjectReference Include="..\IsoDocs.Infrastructure\IsoDocs.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

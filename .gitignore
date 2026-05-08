@@ -1,0 +1,66 @@
+# .NET
+bin/
+obj/
+out/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+.vscode/
+.idea/
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.opendb
+*.VC.db
+
+# NuGet
+*.nupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
+
+# Coverage
+coverage/
+*.coverage
+*.coveragexml
+TestResults/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+appsettings.Local.json
+appsettings.*.Local.json
+*.pfx
+secrets.json
+.env
+.env.local
+
+# Logs
+*.log
+logs/
+
+# Node (前端後續會放在 frontend/ 目錄)
+node_modules/
+dist/
+.cache/
