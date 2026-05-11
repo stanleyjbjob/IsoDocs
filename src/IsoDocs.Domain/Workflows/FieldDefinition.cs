@@ -21,15 +21,19 @@ public class FieldDefinition : Entity<Guid>, IAggregateRoot
 
     private FieldDefinition() { }
 
-    public FieldDefinition(Guid id, string code, string name, FieldType type, bool isRequired)
+    public FieldDefinition(Guid id, string code, string name, FieldType type, bool isRequired,
+        string? validationJson = null, string? optionsJson = null)
     {
         Id = id;
         Code = code;
         Name = name;
         Type = type;
         IsRequired = isRequired;
+        ValidationJson = validationJson;
+        OptionsJson = optionsJson;
     }
 
+    /// <summary>更新欄位定義，Version 自動 +1，進行中案件的 CaseField.FieldVersion 不受影響。</summary>
     public void Update(string name, FieldType type, bool isRequired, string? validationJson, string? optionsJson)
     {
         Name = name;
@@ -38,6 +42,18 @@ public class FieldDefinition : Entity<Guid>, IAggregateRoot
         ValidationJson = validationJson;
         OptionsJson = optionsJson;
         Version += 1;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void Deactivate()
+    {
+        IsActive = false;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void Activate()
+    {
+        IsActive = true;
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 }
