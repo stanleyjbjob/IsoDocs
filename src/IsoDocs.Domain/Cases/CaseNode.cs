@@ -60,6 +60,15 @@ public class CaseNode : Entity<Guid>
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 
+    /// <summary>退回流程重啟本節點：重置為 Pending 允許重新接單。</summary>
+    public void Reactivate()
+    {
+        Status = CaseNodeStatus.Pending;
+        StartedAt = null;
+        CompletedAt = null;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
     public void Skip()
     {
         Status = CaseNodeStatus.Skipped;

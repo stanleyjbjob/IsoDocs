@@ -1,6 +1,7 @@
 using System.Reflection;
 using FluentValidation;
 using IsoDocs.Application.Common.Behaviors;
+using IsoDocs.Application.Workflows;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -27,6 +28,8 @@ public static class DependencyInjection
 
         // 註冊本組件中的所有 FluentValidation 驗證器
         services.AddValidatorsFromAssembly(assembly);
+
+        services.AddScoped<ICaseWorkflowEngine, CaseWorkflowEngine>();
 
         return services;
     }
