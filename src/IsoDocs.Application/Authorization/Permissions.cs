@@ -29,6 +29,13 @@ public static class Permissions
     /// <summary>邀請新使用者（透過 Microsoft Graph，issue #3）。</summary>
     public const string UsersInvite = "users.invite";
 
+    // ── 文件類型管理（issue #16 [5.1.1]）────────────────────────────
+    /// <summary>讀取文件類型清單。</summary>
+    public const string DocumentTypesRead = "document_types.read";
+
+    /// <summary>建立、修改文件類型。</summary>
+    public const string DocumentTypesWrite = "document_types.write";
+
     // ── 系統管理（萬用旁路）─────────────────────────────────────────
     /// <summary>系統管理員萬用權限。User.IsSystemAdmin=true 視同擁有此權限。</summary>
     public const string AdminFullAccess = "admin.full_access";
@@ -41,6 +48,8 @@ public static class Permissions
         UsersRead,
         UsersAssignRoles,
         UsersInvite,
+        DocumentTypesRead,
+        DocumentTypesWrite,
         AdminFullAccess
     };
 

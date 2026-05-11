@@ -30,6 +30,13 @@ public class DocumentType : Entity<Guid>, IAggregateRoot
         SequenceYear = sequenceYear;
     }
 
+    public void Update(string name, bool isActive)
+    {
+        Name = name;
+        IsActive = isActive;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
     /// <summary>
     /// 取下一個流水號。若年度切換則自動重置。
     /// 注意：實際併發控制需搭配 EF Core 樂觀鎖（RowVersion）或交易隔離。
