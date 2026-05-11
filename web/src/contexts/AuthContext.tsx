@@ -1,8 +1,15 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import { useMsal, useIsAuthenticated } from '@azure/msal-react';
+import {
+  InteractionRequiredAuthError,
+  InteractionStatus,
+  type AccountInfo,
+} from '@azure/msal-browser';
+import { apiTokenRequestScopes, loginRequestScopes } from '../lib/msalConfig';
 
 /**
- * 使用者基本資訊（由後端 /api/me 回傳，目前先用最小子集）。
+ * 使用者基本資訊（由 ID Token claims 解析；後續可改由後端 /api/me 同步覆寫）。
  */
 export interface AuthUser {
   id: string;
@@ -16,59 +23,136 @@ export interface AuthContextValue {
   isAuthenticated: boolean;
   isLoading: boolean;
   /**
-   * 取得目前的存取 Token。供 API client 攔截器同步呼叫。
-   * 目前回傳 localStorage 暫存值；issue #34 [2.1.2] 會改由 MSAL acquireTokenSilent 取得。
+   * 同步取得最近一次成功取得的 access token。供 axios request interceptor 使用。
+   * 若尚未登入或還沒拿到 token，回傳 null。真正向 MSAL 取 token 是 acquireToken() 的工作。
    */
   getToken: () => string | null;
+  /**
+   * 異步取得 access token：先 acquireTokenSilent；catch InteractionRequiredAuthError
+   * 再走 acquireTokenRedirect 互動式 fallback。
+   */
+  acquireToken: () => Promise<string | null>;
   login: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
-const TOKEN_STORAGE_KEY = 'isodocs.auth.token';
-const USER_STORAGE_KEY = 'isodocs.auth.user';
-
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 /**
- * AuthProvider 是 MSAL 整合前的暫時實作：
- * - getToken 直接讀 localStorage（後續會改為 MSAL acquireTokenSilent）
- * - login/logout 為 stub，待 issue #34 接入真實流程
- * 設計上保留完整介面，讓 API client / 受保護路由不需在後續整合時改動。
+ * 將 MSAL `AccountInfo` 轉成本系統的 `AuthUser`。
+ * 守護式處理 idTokenClaims（其型別在 MSAL v3 是寬鬆的 unknown shape）。
+ */
+function accountToUser(account: AccountInfo | null | undefined): AuthUser | null {
+  if (!account) return null;
+  const claims = (account.idTokenClaims ?? {}) as Record<string, unknown>;
+  const roles = Array.isArray(claims.roles) ? (claims.roles as string[]) : [];
+  const oidClaim = typeof claims.oid === 'string' ? claims.oid : '';
+  const preferredUsername =
+    typeof claims.preferred_username === 'string' ? claims.preferred_username : '';
+  const emailClaim = typeof claims.email === 'string' ? claims.email : '';
+  const nameClaim = typeof claims.name === 'string' ? claims.name : '';
+  return {
+    id: oidClaim || account.localAccountId,
+    email: preferredUsername || emailClaim || account.username,
+    displayName: nameClaim || account.name || account.username,
+    roles,
+  };
+}
+
+/**
+ * AuthProvider — issue #34 [2.1.2] MSAL 整合版。
+ *
+ * 必須包在 `<MsalProvider>` 之內（main.tsx 已處理）。
+ *
+ * 行為：
+ * - 透過 useMsal / useIsAuthenticated 反映 MSAL 內部狀態
+ * - 第一次偵測到登入後，主動 acquireTokenSilent 取一次 access token 暫存於 React state
+ *   讓 API client 的 request interceptor 可以同步取用（雖然我們也提供 acquireToken async 版）
+ * - login()  → loginRedirect（OIDC 標準）
+ * - logout() → logoutRedirect，登出後導向 /login
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { instance, accounts, inProgress } = useMsal();
+  const isAuthenticated = useIsAuthenticated();
+  const [token, setToken] = useState<string | null>(null);
+  const [tokenAttempted, setTokenAttempted] = useState(false);
 
+  const activeAccount = instance.getActiveAccount() ?? accounts[0] ?? null;
+
+  // 確保 active account 與 accounts[0] 同步（首次登入完 redirect 回來時 useMsal 可能還沒設好）
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(USER_STORAGE_KEY);
-      if (raw) {
-        setUser(JSON.parse(raw) as AuthUser);
-      }
-    } catch {
-      // 忽略：壞資料時視為未登入
-    } finally {
-      setIsLoading(false);
+    if (activeAccount && !instance.getActiveAccount()) {
+      instance.setActiveAccount(activeAccount);
     }
-  }, []);
+  }, [activeAccount, instance]);
+
+  const acquireToken = useCallback(async (): Promise<string | null> => {
+    const account = instance.getActiveAccount() ?? accounts[0];
+    if (!account) {
+      return null;
+    }
+    try {
+      const result = await instance.acquireTokenSilent({
+        account,
+        scopes: apiTokenRequestScopes,
+      });
+      setToken(result.accessToken);
+      return result.accessToken;
+    } catch (err) {
+      if (err instanceof InteractionRequiredAuthError) {
+        // 互動式 fallback：用 redirect 流程重新取 token
+        await instance.acquireTokenRedirect({
+          account,
+          scopes: apiTokenRequestScopes,
+        });
+        return null;
+      }
+      // eslint-disable-next-line no-console
+      console.error('acquireTokenSilent 失敗：', err);
+      return null;
+    }
+  }, [instance, accounts]);
+
+  // 第一次有 active account 時主動取一次 token，讓 API client 能立即用
+  useEffect(() => {
+    if (isAuthenticated && !tokenAttempted) {
+      setTokenAttempted(true);
+      void acquireToken();
+    }
+    if (!isAuthenticated && tokenAttempted) {
+      setToken(null);
+      setTokenAttempted(false);
+    }
+  }, [isAuthenticated, tokenAttempted, acquireToken]);
+
+  const login = useCallback(async () => {
+    await instance.loginRedirect({ scopes: loginRequestScopes });
+  }, [instance]);
+
+  const logout = useCallback(async () => {
+    setToken(null);
+    setTokenAttempted(false);
+    const account = instance.getActiveAccount() ?? accounts[0] ?? undefined;
+    await instance.logoutRedirect({
+      account,
+      postLogoutRedirectUri:
+        typeof window !== 'undefined' ? window.location.origin + '/login' : undefined,
+    });
+  }, [instance, accounts]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
-      user,
-      isAuthenticated: user !== null,
-      isLoading,
-      getToken: () => localStorage.getItem(TOKEN_STORAGE_KEY),
-      login: async () => {
-        // TODO(issue #34 [2.1.2])：以 MSAL.loginPopup / loginRedirect 取代
-        throw new Error('登入流程尚未整合，將於 issue #34 [2.1.2] 完成');
-      },
-      logout: async () => {
-        localStorage.removeItem(TOKEN_STORAGE_KEY);
-        localStorage.removeItem(USER_STORAGE_KEY);
-        setUser(null);
-      },
+      user: accountToUser(activeAccount),
+      isAuthenticated,
+      isLoading:
+        inProgress === InteractionStatus.Startup ||
+        inProgress === InteractionStatus.HandleRedirect,
+      getToken: () => token,
+      acquireToken,
+      login,
+      logout,
     }),
-    [user, isLoading],
+    [activeAccount, isAuthenticated, inProgress, token, acquireToken, login, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -82,4 +166,9 @@ export function useAuth(): AuthContextValue {
   return ctx;
 }
 
-export const __INTERNAL_TOKEN_STORAGE_KEY = TOKEN_STORAGE_KEY;
+/**
+ * 為了相容 issue #4 [1.2] 留下的 API client 介面，導出一個 token storage key 常數。
+ * MSAL 整合後 token 主要透過 `acquireTokenSilent` 取得而非 localStorage，但保留這個常數
+ * 讓後續模組（例如手動清除 stale state 的工具）可以參照。
+ */
+export const __INTERNAL_TOKEN_STORAGE_KEY = 'isodocs.auth.token';
