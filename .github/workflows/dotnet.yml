@@ -1,0 +1,69 @@
+name: .NET CI
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    name: Build & Test (.NET 8)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DOTNET_NOLOGO: 'true'
+      DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+      ASPNETCORE_ENVIRONMENT: 'Development'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: dotnet --info
+        run: dotnet --info
+
+      - name: Restore
+        run: dotnet restore IsoDocs.sln
+
+      - name: Build (Release)
+        run: dotnet build IsoDocs.sln --configuration Release --no-restore
+
+      - name: Test — Application.UnitTests
+        run: >
+          dotnet test tests/IsoDocs.Application.UnitTests/IsoDocs.Application.UnitTests.csproj
+          --configuration Release
+          --no-build
+          --logger "trx;LogFileName=app-unit-tests.trx"
+          --logger "console;verbosity=normal"
+          --results-directory ${{ github.workspace }}/TestResults
+
+      - name: Test — Api.IntegrationTests
+        run: >
+          dotnet test tests/IsoDocs.Api.IntegrationTests/IsoDocs.Api.IntegrationTests.csproj
+          --configuration Release
+          --no-build
+          --logger "trx;LogFileName=api-integration-tests.trx"
+          --logger "console;verbosity=normal"
+          --results-directory ${{ github.workspace }}/TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: ${{ github.workspace }}/TestResults/*.trx
+          retention-days: 7
+          if-no-files-found: warn
