@@ -11,11 +11,11 @@ import dayjs from 'dayjs';
 import App from './App';
 import { queryClient } from './lib/queryClient';
 import { AuthProvider } from './contexts/AuthContext';
+import { installMockRbac } from './api/mockRoles';
 
 dayjs.locale('zh-tw');
 
 if (import.meta.env.VITE_USE_MOCK_RBAC === 'true') {
-  const { installMockRbac } = await import('./api/mockRoles');
   installMockRbac();
 }
 

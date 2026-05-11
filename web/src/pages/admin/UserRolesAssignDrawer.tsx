@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Drawer, Form, Button, Select, DatePicker, Space, message } from 'antd';
 import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import dayjs from 'dayjs';
+import type { Dayjs } from 'dayjs';
 import { rolesApi, type UserSummary, type Role, type UserRoleAssignment } from '../../api/roles';
 
 interface Props {
@@ -14,8 +14,8 @@ interface Props {
 
 interface AssignmentFormItem {
   roleId: string;
-  effectiveFrom?: dayjs.Dayjs;
-  effectiveTo?: dayjs.Dayjs;
+  effectiveFrom?: Dayjs;
+  effectiveTo?: Dayjs;
 }
 
 interface FormValues {
@@ -37,8 +37,8 @@ export default function UserRolesAssignDrawer({ open, user, roles, onClose }: Pr
       form.setFieldsValue({
         assignments: currentAssignments.map((a) => ({
           roleId: a.roleId,
-          effectiveFrom: a.effectiveFrom ? dayjs(a.effectiveFrom) : undefined,
-          effectiveTo: a.effectiveTo ? dayjs(a.effectiveTo) : undefined,
+          effectiveFrom: undefined,
+          effectiveTo: undefined,
         })),
       });
     } else if (open) {
