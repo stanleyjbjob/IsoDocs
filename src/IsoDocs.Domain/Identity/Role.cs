@@ -43,4 +43,15 @@ public class Role : Entity<Guid>, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTimeOffset.UtcNow;
     }
+
+    /// <summary>
+    /// 重新啟用已停用的角色。對應 issue #6 [2.2.1] 的 PUT /api/roles/{id}/activate（管理者操作）。
+    /// 對系統內建角色為冪等：因為 Deactivate() 已禁止停用，IsActive 永遠為 true，此處不另防呆。
+    /// </summary>
+    public void Activate()
+    {
+        if (IsActive) return;
+        IsActive = true;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
 }
