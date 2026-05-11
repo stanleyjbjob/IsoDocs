@@ -51,22 +51,24 @@ public sealed class AssignRolesToUserCommandHandler : ICommandHandler<AssignRole
 
     public async Task<Unit> Handle(AssignRolesToUserCommand request, CancellationToken cancellationToken)
     {
-        // 確認所有 RoleId 都存在且未停用
+        // 確認所有 RoleId 都存在
         var found = await _roles.ListByIdsAsync(request.RoleIds, cancellationToken);
         var foundIds = found.Select(r => r.Id).ToHashSet();
         var missing = request.RoleIds.Where(id => !foundIds.Contains(id)).ToList();
         if (missing.Count > 0)
         {
+            var joined = string.Join(", ", missing);
             throw new DomainException(
                 RoleErrorCodes.AssignmentFailed,
-                $"以下角色不存在或已停用：{string.Join(\", \", missing)}");
+                $"以下角色不存在：{joined}");
         }
         var inactive = found.Where(r => !r.IsActive).Select(r => r.Id).ToList();
         if (inactive.Count > 0)
         {
+            var joined = string.Join(", ", inactive);
             throw new DomainException(
                 RoleErrorCodes.AssignmentFailed,
-                $"以下角色已停用，無法指派：{string.Join(\", \", inactive)}");
+                $"以下角色已停用，無法指派：{joined}");
         }
 
         var effectiveFrom = request.EffectiveFrom ?? DateTimeOffset.UtcNow;
