@@ -27,6 +27,13 @@ public class WorkflowTemplate : Entity<Guid>, IAggregateRoot
         CreatedByUserId = createdByUserId;
     }
 
+    public void Update(string name, string? description)
+    {
+        Name = name;
+        Description = description;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
     public void UpdateDefinition(string definitionJson)
     {
         DefinitionJson = definitionJson;
@@ -43,6 +50,18 @@ public class WorkflowTemplate : Entity<Guid>, IAggregateRoot
     {
         Version += 1;
         PublishedAt = null;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void Deactivate()
+    {
+        IsActive = false;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void Activate()
+    {
+        IsActive = true;
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 }
