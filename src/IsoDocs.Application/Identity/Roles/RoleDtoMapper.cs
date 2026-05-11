@@ -20,7 +20,7 @@ public static class RoleDtoMapper
         return new RoleDto(
             Id: role.Id,
             Name: role.Name,
-            Description: GetDescription(role),
+            Description: role.Description,
             Permissions: permissions,
             IsSystemRole: role.IsSystemRole,
             IsActive: role.IsActive,
@@ -43,13 +43,5 @@ public static class RoleDtoMapper
         {
             return Array.Empty<string>();
         }
-    }
-
-    // Role.Description 是 protected set，無公開 getter；以反射回退時不必要——目前 Role.cs 公開了
-    // Description 的 get（只是 set 是 protected）。所以 role.Description 可直接讀。
-    private static string? GetDescription(Role role)
-    {
-        var prop = typeof(Role).GetProperty("Description");
-        return prop?.GetValue(role) as string;
     }
 }

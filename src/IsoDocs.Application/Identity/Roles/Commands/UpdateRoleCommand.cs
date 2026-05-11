@@ -30,7 +30,7 @@ public sealed class UpdateRoleCommandValidator : AbstractValidator<UpdateRoleCom
 
         RuleForEach(x => x.Permissions)
             .Must(Authorization.Permissions.IsKnown)
-            .WithMessage(p => $"未知的權限碼：{p}。");
+            .WithMessage("未知的權限碼：{PropertyValue}。");
     }
 }
 
