@@ -1,0 +1,200 @@
+name: Generate EF Core Migrations
+
+# 為 issue #5 [1.3] 產生最後缺的 InitialSchema Migration C# 檔。
+# 因 Cowork sandbox 對 NuGet 全 feed 403，改在 GitHub-hosted runner 跑 dotnet ef migrations add。
+# 觸發方式：
+#   - 推 commit 到 feature/issue-5-database-schema（除非該 commit 只動 Migrations/ Snapshot/ docs/ README）
+#   - 手動 workflow_dispatch
+#
+# Round 47 強化：加入 artifact upload（即使 push 失敗也能下載）與 PR fallback。
+on:
+  push:
+    branches:
+      - feature/issue-5-database-schema
+    paths-ignore:
+      - 'src/IsoDocs.Infrastructure/Persistence/Migrations/**'
+      - 'src/IsoDocs.Infrastructure/Persistence/IsoDocsDbContextModelSnapshot.cs'
+      - 'docs/**'
+      - 'README.md'
+      - '*.md'
+  workflow_dispatch:
+    inputs:
+      migration_name:
+        description: 'EF Core migration name'
+        required: true
+        default: 'InitialSchema'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: ef-migrations-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  generate-migrations:
+    name: dotnet ef migrations add
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_NOLOGO: 'true'
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: '1'
+      MIGRATION_NAME: ${{ inputs.migration_name || 'InitialSchema' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Diagnostics — show git state
+        run: |
+          set -eux
+          echo "=== git log (last 5) ==="
+          git log --oneline -n 5 || true
+          echo
+          echo "=== git status ==="
+          git status || true
+          echo
+          echo "=== top-level tree ==="
+          ls -la
+          echo
+          echo "=== Persistence tree ==="
+          ls -la src/IsoDocs.Infrastructure/Persistence/ || true
+          echo
+          echo "=== Migrations tree (if any) ==="
+          ls -la src/IsoDocs.Infrastructure/Persistence/Migrations/ 2>/dev/null || echo "(no Migrations dir yet)"
+
+      - name: Skip if migrations folder already populated
+        id: check
+        run: |
+          set -eux
+          dir="src/IsoDocs.Infrastructure/Persistence/Migrations"
+          if [ -d "$dir" ] && [ -n "$(ls -A "$dir" 2>/dev/null || true)" ]; then
+            echo "already_exists=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Migrations directory already populated — skipping generation."
+          else
+            echo "already_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup .NET SDK 8.0
+        if: steps.check.outputs.already_exists == 'false'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Show dotnet info
+        if: steps.check.outputs.already_exists == 'false'
+        run: dotnet --info
+
+      - name: Install dotnet-ef tool
+        if: steps.check.outputs.already_exists == 'false'
+        run: dotnet tool install --global dotnet-ef --version 8.0.10
+
+      - name: Add dotnet tools to PATH
+        if: steps.check.outputs.already_exists == 'false'
+        run: echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+
+      - name: Restore solution packages
+        if: steps.check.outputs.already_exists == 'false'
+        run: |
+          set -eux
+          dotnet restore IsoDocs.sln
+
+      - name: Build IsoDocs.Api (verifies model compiles before migration)
+        if: steps.check.outputs.already_exists == 'false'
+        run: |
+          set -eux
+          dotnet build src/IsoDocs.Api/IsoDocs.Api.csproj --no-restore -c Debug
+
+      - name: Generate ${{ env.MIGRATION_NAME }} migration
+        if: steps.check.outputs.already_exists == 'false'
+        id: gen
+        run: |
+          set -eux
+          dotnet ef migrations add "$MIGRATION_NAME" \
+            --project src/IsoDocs.Infrastructure \
+            --startup-project src/IsoDocs.Api \
+            --output-dir Persistence/Migrations \
+            --verbose 2>&1 | tee /tmp/dotnet-ef.log
+
+      - name: Diagnostics — list generated artefacts
+        if: always() && steps.check.outputs.already_exists == 'false'
+        run: |
+          set -eux
+          echo "=== Persistence (full) ==="
+          find src/IsoDocs.Infrastructure/Persistence -maxdepth 4 -type f -printf '%p\n' || true
+          echo
+          echo "=== Persistence/Migrations ==="
+          ls -la src/IsoDocs.Infrastructure/Persistence/Migrations/ 2>/dev/null || echo "(missing)"
+          echo
+          echo "=== Snapshot file ==="
+          ls -la src/IsoDocs.Infrastructure/Persistence/IsoDocsDbContextModelSnapshot.cs 2>/dev/null \
+            || echo "(no snapshot file at expected path — investigate)"
+          echo
+          echo "=== /tmp/dotnet-ef.log (tail 80) ==="
+          tail -n 80 /tmp/dotnet-ef.log 2>/dev/null || echo "(no dotnet ef log captured)"
+
+      - name: Upload generated artefacts (always — even on failure)
+        if: always() && steps.check.outputs.already_exists == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ef-migrations-${{ github.run_id }}
+          path: |
+            src/IsoDocs.Infrastructure/Persistence/Migrations/**
+            src/IsoDocs.Infrastructure/Persistence/IsoDocsDbContextModelSnapshot.cs
+            /tmp/dotnet-ef.log
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Commit and push generated files (with PR fallback)
+        if: success() && steps.check.outputs.already_exists == 'false'
+        id: push
+        run: |
+          set -eux
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          git add src/IsoDocs.Infrastructure/Persistence/Migrations/
+          git add src/IsoDocs.Infrastructure/Persistence/IsoDocsDbContextModelSnapshot.cs 2>/dev/null || true
+          git add -A src/IsoDocs.Infrastructure/Persistence/
+
+          if git diff --cached --quiet; then
+            echo "::error::No staged changes after dotnet ef migrations add — generation likely failed silently."
+            exit 1
+          fi
+
+          git commit \
+            -m "feat(db): EF Core $MIGRATION_NAME migration (auto-generated by CI for #5)" \
+            -m "Closes part of #5 — last acceptance criterion (EF Core Migration scripts)." \
+            -m "Generated with: dotnet ef migrations add $MIGRATION_NAME -p src/IsoDocs.Infrastructure -s src/IsoDocs.Api -o Persistence/Migrations"
+
+          ref_name="${GITHUB_REF#refs/heads/}"
+
+          # 嘗試直接 push 回原 branch
+          if git push origin "HEAD:${ref_name}"; then
+            echo "direct_push=success" >> "$GITHUB_OUTPUT"
+            echo "::notice::Direct push to ${ref_name} succeeded."
+          else
+            echo "direct_push=failed" >> "$GITHUB_OUTPUT"
+            echo "::warning::Direct push failed — falling back to PR branch."
+            fallback_branch="ci/issue-5-ef-migrations-${GITHUB_RUN_ID}"
+            git push origin "HEAD:${fallback_branch}"
+            echo "fallback_branch=${fallback_branch}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open PR from fallback branch (only if direct push failed)
+        if: steps.push.outputs.direct_push == 'failed'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FALLBACK_BRANCH: ${{ steps.push.outputs.fallback_branch }}
+        run: |
+          set -eux
+          gh pr create \
+            --base feature/issue-5-database-schema \
+            --head "$FALLBACK_BRANCH" \
+            --title "feat(db): EF Core $MIGRATION_NAME migration (auto-generated by CI for #5)" \
+            --body "Auto-generated from CI run ${GITHUB_RUN_ID}. Direct push to feature branch failed (likely due to branch protection or workflow permissions). Merge this PR to land the migration files. See artifact \`ef-migrations-${GITHUB_RUN_ID}\` for the same files."
