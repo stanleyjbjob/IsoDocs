@@ -77,4 +77,13 @@ public class CaseNode : Entity<Guid>
         AssigneeUserId = newAssigneeUserId;
         UpdatedAt = DateTimeOffset.UtcNow;
     }
+
+    /// <summary>退回後重新啟用前一個節點，設回 Pending 讓處理人重新接單。</summary>
+    public void Reactivate()
+    {
+        Status = CaseNodeStatus.Pending;
+        StartedAt = null;
+        CompletedAt = null;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
 }
