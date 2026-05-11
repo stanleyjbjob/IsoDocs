@@ -1,3 +1,4 @@
+using IsoDocs.Api.Authorization;
 using IsoDocs.Api.Middleware;
 using IsoDocs.Application;
 using IsoDocs.Infrastructure;
@@ -64,7 +65,13 @@ if (isAzureAdConfigured)
         options.FallbackPolicy = new AuthorizationPolicyBuilder()
             .RequireAuthenticatedUser()
             .Build();
+
+        // issue #6 [2.2.1] — 為每個已知權限碼註冊一條 Policy，名稱 = 權限碼本身
+        options.AddIsoDocsPermissionPolicies();
     });
+
+    // issue #6 [2.2.1] — PermissionAuthorizationHandler 需 Scoped（內部注入了與 DbContext 同生命週期的 IPermissionService）
+    builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
 }
 
 builder.Services.AddCors(options =>
