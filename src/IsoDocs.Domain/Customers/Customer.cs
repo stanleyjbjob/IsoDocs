@@ -2,9 +2,6 @@ using IsoDocs.Domain.Common;
 
 namespace IsoDocs.Domain.Customers;
 
-/// <summary>
-/// 客戶主檔（issue [4.1]）。獨立維護，案件可關聯客戶。
-/// </summary>
 public class Customer : Entity<Guid>, IAggregateRoot
 {
     public string Code { get; protected set; } = string.Empty;
@@ -31,6 +28,12 @@ public class Customer : Entity<Guid>, IAggregateRoot
         ContactEmail = contactEmail;
         ContactPhone = contactPhone;
         Note = note;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void Activate()
+    {
+        IsActive = true;
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 
