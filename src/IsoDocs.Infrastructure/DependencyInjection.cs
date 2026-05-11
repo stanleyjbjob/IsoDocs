@@ -1,5 +1,6 @@
 using IsoDocs.Application.Auth;
 using IsoDocs.Application.Authorization;
+using IsoDocs.Application.Cases;
 using IsoDocs.Application.Identity.Roles;
 using IsoDocs.Application.Identity.UserRoles;
 using IsoDocs.Infrastructure.Auth;
@@ -14,7 +15,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace IsoDocs.Infrastructure;
 
 /// <summary>
-/// Infrastructure 層的 DI 註冊入口。集中註冊 EF Core DbContext 與外部服務（後續：Microsoft Graph、Azure Blob、Hangfire）。
+/// Infrastructure 層的 DI 註冊入口。集中註冊 EF Core DbContext 與外部服務。
 /// </summary>
 public static class DependencyInjection
 {
@@ -32,8 +33,6 @@ public static class DependencyInjection
             var connectionString = configuration.GetConnectionString(DefaultConnectionStringName);
             if (string.IsNullOrWhiteSpace(connectionString))
             {
-                // 容許在沒有連線字串的情況下啟動（例如純單元測試或 Swagger 預覽）。
-                // 整合測試會用 InMemory 或 Testcontainers 提供連線。
                 return;
             }
 
@@ -54,8 +53,13 @@ public static class DependencyInjection
         services.AddScoped<IUserRoleRepository, UserRoleRepository>();
         services.AddScoped<IPermissionService, PermissionService>();
 
+        // issue #9 [5.2.1] — 工作需求單發起與指派
+        services.AddScoped<ICaseRepository, CaseRepository>();
+        services.AddScoped<IDocumentTypeRepository, DocumentTypeRepository>();
+        services.AddScoped<IWorkflowRepository, WorkflowRepository>();
+
         // TODO: issue #22 — 註冊 Hangfire
-        // TODO: issue #23 — 註冊 Microsoft Graph（提供離職同步所需的 GraphServiceClient）
+        // TODO: issue #23 — 註冊 Microsoft Graph
         // TODO: issue #26 — 註冊 Azure Blob Storage
 
         return services;
