@@ -9,7 +9,7 @@ namespace IsoDocs.Infrastructure.Auth;
 /// <summary>
 /// <see cref="IUserSyncService"/> 的 EF Core 實作。與 <see cref="IsoDocsDbContext"/> 同生命週期（Scoped）。
 /// </summary>
-internal sealed class UserSyncService : IUserSyncService
+public sealed class UserSyncService : IUserSyncService
 {
     private readonly IsoDocsDbContext _dbContext;
     private readonly ILogger<UserSyncService> _logger;

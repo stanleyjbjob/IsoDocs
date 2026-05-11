@@ -1,7 +1,12 @@
 using IsoDocs.Application.Auth;
+using IsoDocs.Application.Authorization;
+using IsoDocs.Application.Identity.Roles;
+using IsoDocs.Application.Identity.UserRoles;
 using IsoDocs.Infrastructure.Auth;
+using IsoDocs.Infrastructure.Authorization;
 using IsoDocs.Infrastructure.Persistence;
 using IsoDocs.Infrastructure.Persistence.Interceptors;
+using IsoDocs.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,7 +24,7 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // SaveChanges 攝截器：自動維護 UpdatedAt
+        // SaveChanges 攔截器：自動維護 UpdatedAt
         services.AddSingleton<AuditableEntityInterceptor>();
 
         services.AddDbContext<IsoDocsDbContext>((sp, options) =>
@@ -42,8 +47,12 @@ public static class DependencyInjection
         });
 
         // issue #2 [2.1.1] — Azure AD 使用者同步服務
-        // Scoped 同 DbContext。API 層 controller / authorization handler 可直接注入 IUserSyncService。
         services.AddScoped<IUserSyncService, UserSyncService>();
+
+        // issue #6 [2.2.1] — 自訂角色與 RBAC 權限管理
+        services.AddScoped<IRoleRepository, RoleRepository>();
+        services.AddScoped<IUserRoleRepository, UserRoleRepository>();
+        services.AddScoped<IPermissionService, PermissionService>();
 
         // TODO: issue #22 — 註冊 Hangfire
         // TODO: issue #23 — 註冊 Microsoft Graph（提供離職同步所需的 GraphServiceClient）
