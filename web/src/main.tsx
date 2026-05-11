@@ -14,6 +14,11 @@ import { AuthProvider } from './contexts/AuthContext';
 
 dayjs.locale('zh-tw');
 
+if (import.meta.env.VITE_USE_MOCK_RBAC === 'true') {
+  const { installMockRbac } = await import('./api/mockRoles');
+  installMockRbac();
+}
+
 const rootEl = document.getElementById('root');
 if (!rootEl) {
   throw new Error('Root element #root not found');
