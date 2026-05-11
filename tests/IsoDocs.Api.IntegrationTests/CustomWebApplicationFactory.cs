@@ -1,5 +1,6 @@
 using IsoDocs.Api.IntegrationTests.Fakes;
 using IsoDocs.Application.Auth;
+using IsoDocs.Application.Users;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -20,8 +21,9 @@ namespace IsoDocs.Api.IntegrationTests;
 /// </summary>
 public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 {
-    /// <summary>測試類別可直接拿到 fake，藉此 seed 使用者或強制停用。</summary>
     public FakeUserSyncService UserSync { get; } = new();
+    public FakeUserRepository UserRepo { get; } = new();
+    public FakeGraphInvitationService GraphInvitation { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -41,6 +43,12 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
         {
             services.RemoveAll<IUserSyncService>();
             services.AddSingleton<IUserSyncService>(UserSync);
+
+            services.RemoveAll<IUserRepository>();
+            services.AddSingleton<IUserRepository>(UserRepo);
+
+            services.RemoveAll<IGraphInvitationService>();
+            services.AddSingleton<IGraphInvitationService>(GraphInvitation);
 
             services
                 .AddAuthentication(defaultScheme: TestAuthHandler.SchemeName)

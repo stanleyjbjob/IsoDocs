@@ -48,4 +48,10 @@ public class User : Entity<Guid>, IAggregateRoot
         IsActive = true;
         UpdatedAt = DateTimeOffset.UtcNow;
     }
+
+    public void MakeSystemAdmin()
+    {
+        IsSystemAdmin = true;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
 }

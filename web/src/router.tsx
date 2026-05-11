@@ -3,6 +3,7 @@ import { useAuth } from './contexts/AuthContext';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import NotFoundPage from './pages/NotFoundPage';
+import InviteUserPage from './pages/admin/InviteUserPage';
 import type { ReactNode } from 'react';
 
 /**
@@ -30,6 +31,14 @@ export function AppRouter() {
         element={
           <RequireAuth>
             <HomePage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/invite-user"
+        element={
+          <RequireAuth>
+            <InviteUserPage />
           </RequireAuth>
         }
       />

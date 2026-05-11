@@ -1,7 +1,10 @@
 using IsoDocs.Application.Auth;
+using IsoDocs.Application.Users;
 using IsoDocs.Infrastructure.Auth;
+using IsoDocs.Infrastructure.Graph;
 using IsoDocs.Infrastructure.Persistence;
 using IsoDocs.Infrastructure.Persistence.Interceptors;
+using IsoDocs.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -42,11 +45,14 @@ public static class DependencyInjection
         });
 
         // issue #2 [2.1.1] — Azure AD 使用者同步服務
-        // Scoped 同 DbContext。API 層 controller / authorization handler 可直接注入 IUserSyncService。
         services.AddScoped<IUserSyncService, UserSyncService>();
 
+        // issue #3 [2.3.1] — 邀請成員
+        services.AddHttpClient();
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IGraphInvitationService, GraphInvitationService>();
+
         // TODO: issue #22 — 註冊 Hangfire
-        // TODO: issue #23 — 註冊 Microsoft Graph（提供離職同步所需的 GraphServiceClient）
         // TODO: issue #26 — 註冊 Azure Blob Storage
 
         return services;
