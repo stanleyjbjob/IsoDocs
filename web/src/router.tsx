@@ -3,6 +3,7 @@ import { useAuth } from './contexts/AuthContext';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import NotFoundPage from './pages/NotFoundPage';
+import CaseSignOffTrailPage from './pages/CaseSignOffTrailPage';
 import type { ReactNode } from 'react';
 
 /**
@@ -30,6 +31,14 @@ export function AppRouter() {
         element={
           <RequireAuth>
             <HomePage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/cases/:caseId/sign-off-trail"
+        element={
+          <RequireAuth>
+            <CaseSignOffTrailPage />
           </RequireAuth>
         }
       />

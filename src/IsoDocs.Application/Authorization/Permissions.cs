@@ -9,6 +9,7 @@ namespace IsoDocs.Application.Authorization;
 ///   3. 若需要新的 Authorization Policy，於 Program.cs 內 AddAuthorization 註冊。
 ///
 /// 後續 issue（#7~#28）會持續擴充這份清單。本檔目前涵蓋 issue #6 [2.2.1] RBAC 必需的權限。
+/// issue #31 [5.4.3] 新增 cases.read / cases.sign_off。
 /// </summary>
 public static class Permissions
 {
@@ -29,6 +30,13 @@ public static class Permissions
     /// <summary>邀請新使用者（透過 Microsoft Graph，issue #3）。</summary>
     public const string UsersInvite = "users.invite";
 
+    // ── 案件管理 ──────────────────────────────────────────────────
+    /// <summary>讀取案件資訊與簽核軌跡（issue #31）。</summary>
+    public const string CasesRead = "cases.read";
+
+    /// <summary>對核准節點提交文件發行簽核（issue #31）。</summary>
+    public const string CasesSignOff = "cases.sign_off";
+
     // ── 系統管理（萬用旁路）─────────────────────────────────────────
     /// <summary>系統管理員萬用權限。User.IsSystemAdmin=true 視同擁有此權限。</summary>
     public const string AdminFullAccess = "admin.full_access";
@@ -41,6 +49,8 @@ public static class Permissions
         UsersRead,
         UsersAssignRoles,
         UsersInvite,
+        CasesRead,
+        CasesSignOff,
         AdminFullAccess
     };
 
@@ -52,7 +62,9 @@ public static class Permissions
         RolesWrite,
         UsersRead,
         UsersAssignRoles,
-        UsersInvite
+        UsersInvite,
+        CasesRead,
+        CasesSignOff
     };
 
     /// <summary>判斷字串是否為已知的權限碼。</summary>
