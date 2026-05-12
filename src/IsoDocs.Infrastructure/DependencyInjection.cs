@@ -1,9 +1,11 @@
 using IsoDocs.Application.Auth;
 using IsoDocs.Application.Authorization;
+using IsoDocs.Application.Attachments;
 using IsoDocs.Application.Identity.Roles;
 using IsoDocs.Application.Identity.UserRoles;
 using IsoDocs.Infrastructure.Auth;
 using IsoDocs.Infrastructure.Authorization;
+using IsoDocs.Infrastructure.Blob;
 using IsoDocs.Infrastructure.Persistence;
 using IsoDocs.Infrastructure.Persistence.Interceptors;
 using IsoDocs.Infrastructure.Persistence.Repositories;
@@ -14,7 +16,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace IsoDocs.Infrastructure;
 
 /// <summary>
-/// Infrastructure 層的 DI 註冊入口。集中註冊 EF Core DbContext 與外部服務（後續：Microsoft Graph、Azure Blob、Hangfire）。
+/// Infrastructure 層的 DI 註冊入口。集中註冊 EF Core DbContext 與外部服務。
 /// </summary>
 public static class DependencyInjection
 {
@@ -54,9 +56,17 @@ public static class DependencyInjection
         services.AddScoped<IUserRoleRepository, UserRoleRepository>();
         services.AddScoped<IPermissionService, PermissionService>();
 
+        // issue #26 [7.2] — Azure Blob Storage 附件上傳下載
+        var blobConnectionString = configuration["AzureBlob:ConnectionString"];
+        if (!string.IsNullOrWhiteSpace(blobConnectionString))
+        {
+            services.Configure<BlobStorageOptions>(configuration.GetSection(BlobStorageOptions.SectionName));
+            services.AddSingleton<IBlobStorageService, BlobStorageService>();
+        }
+        services.AddScoped<IAttachmentRepository, AttachmentRepository>();
+
         // TODO: issue #22 — 註冊 Hangfire
         // TODO: issue #23 — 註冊 Microsoft Graph（提供離職同步所需的 GraphServiceClient）
-        // TODO: issue #26 — 註冊 Azure Blob Storage
 
         return services;
     }
