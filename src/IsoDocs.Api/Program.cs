@@ -1,7 +1,10 @@
+using Hangfire;
 using IsoDocs.Api.Authorization;
+using IsoDocs.Api.Hangfire;
 using IsoDocs.Api.Middleware;
 using IsoDocs.Application;
 using IsoDocs.Infrastructure;
+using IsoDocs.Infrastructure.Jobs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Identity.Web;
@@ -47,6 +50,10 @@ builder.Services.AddSwaggerGen(options =>
         }] = Array.Empty<string>()
     });
 });
+
+// issue #22 [6.3] — Hangfire 是否啟用（需要 DB 連線字串）
+var isHangfireEnabled = !string.IsNullOrWhiteSpace(
+    builder.Configuration.GetConnectionString(DependencyInjection.DefaultConnectionStringName));
 
 // issue #2 [2.1.1] — Azure AD / Entra ID Bearer Token 認證
 // 設計原則：AzureAd:ClientId 為空時跳過註冊，讓本機開發 (無 Azure AD 環境)、CI 整合測試
@@ -110,6 +117,22 @@ if (isAzureAdConfigured)
 }
 
 app.MapControllers();
+
+// issue #22 [6.3] — Hangfire Dashboard（僅管理者可存取）與每日逾期稽催排程
+if (isHangfireEnabled)
+{
+    app.UseHangfireDashboard("/hangfire", new DashboardOptions
+    {
+        Authorization = new[] { new AdminDashboardAuthorizationFilter() },
+        DashboardTitle = "IsoDocs Hangfire Dashboard"
+    });
+
+    RecurringJob.AddOrUpdate<OverdueCheckJob>(
+        recurringJobId: "overdue-check-daily",
+        methodCall: job => job.ExecuteAsync(CancellationToken.None),
+        cronExpression: Cron.Daily(hour: 8),   // 每日 08:00 UTC 執行
+        options: new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
+}
 
 app.Run();
 
