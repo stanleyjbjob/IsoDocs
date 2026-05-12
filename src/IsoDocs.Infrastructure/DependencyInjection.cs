@@ -1,9 +1,11 @@
 using IsoDocs.Application.Auth;
 using IsoDocs.Application.Authorization;
+using IsoDocs.Application.Cases.Export;
 using IsoDocs.Application.Identity.Roles;
 using IsoDocs.Application.Identity.UserRoles;
 using IsoDocs.Infrastructure.Auth;
 using IsoDocs.Infrastructure.Authorization;
+using IsoDocs.Infrastructure.Pdf;
 using IsoDocs.Infrastructure.Persistence;
 using IsoDocs.Infrastructure.Persistence.Interceptors;
 using IsoDocs.Infrastructure.Persistence.Repositories;
@@ -53,6 +55,10 @@ public static class DependencyInjection
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IUserRoleRepository, UserRoleRepository>();
         services.AddScoped<IPermissionService, PermissionService>();
+
+        // issue #28 [8.2] — PDF 匯出
+        services.AddScoped<ICasePdfDataProvider, CasePdfDataProvider>();
+        services.AddSingleton<ICasePdfExporter, CasePdfExporter>();
 
         // TODO: issue #22 — 註冊 Hangfire
         // TODO: issue #23 — 註冊 Microsoft Graph（提供離職同步所需的 GraphServiceClient）
