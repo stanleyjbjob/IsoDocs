@@ -29,6 +29,13 @@ public static class Permissions
     /// <summary>邀請新使用者（透過 Microsoft Graph，issue #3）。</summary>
     public const string UsersInvite = "users.invite";
 
+    // ── 案件留言（issue #25 [7.1]）────────────────────────────────────
+    /// <summary>讀取案件留言清單。</summary>
+    public const string CasesCommentsRead = "cases.comments.read";
+
+    /// <summary>在案件新增留言。</summary>
+    public const string CasesCommentsWrite = "cases.comments.write";
+
     // ── 系統管理（萬用旁路）─────────────────────────────────────────
     /// <summary>系統管理員萬用權限。User.IsSystemAdmin=true 視同擁有此權限。</summary>
     public const string AdminFullAccess = "admin.full_access";
@@ -41,6 +48,8 @@ public static class Permissions
         UsersRead,
         UsersAssignRoles,
         UsersInvite,
+        CasesCommentsRead,
+        CasesCommentsWrite,
         AdminFullAccess
     };
 
@@ -52,7 +61,9 @@ public static class Permissions
         RolesWrite,
         UsersRead,
         UsersAssignRoles,
-        UsersInvite
+        UsersInvite,
+        CasesCommentsRead,
+        CasesCommentsWrite
     };
 
     /// <summary>判斷字串是否為已知的權限碼。</summary>
