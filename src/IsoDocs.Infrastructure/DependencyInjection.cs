@@ -1,5 +1,6 @@
 using IsoDocs.Application.Auth;
 using IsoDocs.Application.Authorization;
+using IsoDocs.Application.Cases.Comments;
 using IsoDocs.Application.Identity.Roles;
 using IsoDocs.Application.Identity.UserRoles;
 using IsoDocs.Infrastructure.Auth;
@@ -24,7 +25,7 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // SaveChanges 攔截器：自動維護 UpdatedAt
+        // SaveChanges 攟截器：自動維護 UpdatedAt
         services.AddSingleton<AuditableEntityInterceptor>();
 
         services.AddDbContext<IsoDocsDbContext>((sp, options) =>
@@ -32,8 +33,6 @@ public static class DependencyInjection
             var connectionString = configuration.GetConnectionString(DefaultConnectionStringName);
             if (string.IsNullOrWhiteSpace(connectionString))
             {
-                // 容許在沒有連線字串的情況下啟動（例如純單元測試或 Swagger 預覽）。
-                // 整合測試會用 InMemory 或 Testcontainers 提供連線。
                 return;
             }
 
@@ -53,6 +52,9 @@ public static class DependencyInjection
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IUserRoleRepository, UserRoleRepository>();
         services.AddScoped<IPermissionService, PermissionService>();
+
+        // issue #25 [7.1] — 案件留言
+        services.AddScoped<ICommentRepository, CommentRepository>();
 
         // TODO: issue #22 — 註冊 Hangfire
         // TODO: issue #23 — 註冊 Microsoft Graph（提供離職同步所需的 GraphServiceClient）
