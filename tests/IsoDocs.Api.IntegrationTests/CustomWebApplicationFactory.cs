@@ -1,9 +1,12 @@
 using IsoDocs.Api.IntegrationTests.Fakes;
+using IsoDocs.Application.Attachments;
 using IsoDocs.Application.Auth;
+using IsoDocs.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -13,16 +16,19 @@ namespace IsoDocs.Api.IntegrationTests;
 /// <summary>
 /// 整合測試共用 <see cref="WebApplicationFactory{TEntryPoint}"/>：
 /// <list type="number">
-///   <item>注入假的 AzureAd 設定，讓 <c>Program.cs</c> 走進 <c>isAzureAdConfigured = true</c> 分支，啟用 [Authorize] pipeline。</item>
-///   <item>替換 <see cref="IUserSyncService"/> 為 <see cref="FakeUserSyncService"/>，避免接 SQL Server。</item>
-///   <item>把預設 authentication scheme 改為 <c>Test</c>，並註冊 <see cref="TestAuthHandler"/>，
-///       讓 [Authorize] 走測試替身解析 claims。</item>
+///   <item>注入假的 AzureAd 設定，啟用 [Authorize] pipeline。</item>
+///   <item>替換 <see cref="IUserSyncService"/> 為 <see cref="FakeUserSyncService"/>。</item>
+///   <item>替換 <see cref="IBlobStorageService"/> 為 <see cref="FakeBlobStorageService"/>。</item>
+///   <item>使用 InMemory EF Core DbContext（避免需要 SQL Server）。</item>
+///   <item>把預設 authentication scheme 改為 Test，讓 [Authorize] 走 <see cref="TestAuthHandler"/>。</item>
 /// </list>
 /// </summary>
 public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 {
-    /// <summary>測試類別可直接拿到 fake，藉此 seed 使用者或強制停用。</summary>
+    private readonly string _dbName = $"IsoDocs_Test_{Guid.NewGuid()}";
+
     public FakeUserSyncService UserSync { get; } = new();
+    public FakeBlobStorageService BlobStorage { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -40,9 +46,24 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 
         builder.ConfigureTestServices(services =>
         {
+            // 替換 DbContext 為 InMemory（避免需要 SQL Server 連線）
+            var dbDescriptor = services.SingleOrDefault(
+                d => d.ServiceType == typeof(DbContextOptions<IsoDocsDbContext>));
+            if (dbDescriptor != null)
+                services.Remove(dbDescriptor);
+
+            services.AddDbContext<IsoDocsDbContext>(options =>
+                options.UseInMemoryDatabase(_dbName));
+
+            // 替換 IUserSyncService 為 Fake
             services.RemoveAll<IUserSyncService>();
             services.AddSingleton<IUserSyncService>(UserSync);
 
+            // 替換 IBlobStorageService 為 Fake
+            services.RemoveAll<IBlobStorageService>();
+            services.AddSingleton<IBlobStorageService>(BlobStorage);
+
+            // 替換 Authentication 為 Test scheme
             services
                 .AddAuthentication(defaultScheme: TestAuthHandler.SchemeName)
                 .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
