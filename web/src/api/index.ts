@@ -61,3 +61,27 @@ export {
   listWorkflowTemplateVersions,
 } from './workflowTemplates';
 export { installMockTemplatesInterceptor } from './mockWorkflowTemplates';
+
+// issue #21 [5.5] 案件前端
+export type {
+  CaseSummary,
+  CaseDetail,
+  CaseFieldValue,
+  CaseNodeProgress,
+  CaseAction,
+  CaseRelationItem,
+  CaseStatus,
+  NodeStatus,
+  CaseActionType,
+  CaseRelationType,
+  NodeType,
+  CaseListParams,
+  CaseCreatePayload,
+  CaseAssignPayload,
+  CaseActionPayload,
+  SpawnChildPayload,
+  ReopenPayload,
+  UpdateExpectedCompletionPayload,
+} from './cases';
+export { casesApi, CASE_STATUS_META, NODE_STATUS_META, ACTION_TYPE_LABEL } from './cases';
+export { installMockCasesInterceptor } from './mockCases';

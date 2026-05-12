@@ -13,6 +13,8 @@ interface ImportMetaEnv {
   readonly VITE_USE_MOCK_FIELDS?: string;
   /** issue #13 [3.2.2]：啟用流程範本 mock interceptor（'true' / 'false'） */
   readonly VITE_USE_MOCK_TEMPLATES?: string;
+  /** issue #21 [5.5]：啟用案件 mock interceptor（'true' / 'false'） */
+  readonly VITE_USE_MOCK_CASES?: string;
 }
 
 interface ImportMeta {

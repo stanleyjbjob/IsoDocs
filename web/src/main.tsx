@@ -18,6 +18,7 @@ import { apiClient } from './api/client';
 import { installMockRbacInterceptor } from './api/mockRoles';
 import { installMockFieldsInterceptor } from './api/mockFieldDefinitions';
 import { installMockTemplatesInterceptor } from './api/mockWorkflowTemplates';
+import { installMockCasesInterceptor } from './api/mockCases';
 
 dayjs.locale('zh-tw');
 
@@ -27,31 +28,30 @@ if (!rootEl) {
 }
 
 async function bootstrap(target: HTMLElement) {
-  // 條件啟用 mock RBAC interceptor（issue #8 [2.2.2]），讓前端在 #6 後端未落地前可獨立開發
   if (import.meta.env.VITE_USE_MOCK_RBAC === 'true') {
     installMockRbacInterceptor(apiClient);
     // eslint-disable-next-line no-console
     console.info('[IsoDocs] Mock RBAC interceptor enabled (VITE_USE_MOCK_RBAC=true)');
   }
 
-  // 條件啟用 mock field-definitions interceptor（issue #11 [3.1.2]），讓前端在 #7 未落地前可獨立開發
   if (import.meta.env.VITE_USE_MOCK_FIELDS === 'true') {
     installMockFieldsInterceptor(apiClient);
     // eslint-disable-next-line no-console
     console.info('[IsoDocs] Mock field-definitions interceptor enabled (VITE_USE_MOCK_FIELDS=true)');
   }
 
-  // 條件啟用 mock workflow-templates interceptor（issue #13 [3.2.2]），讓前端在 #12 未落地前可獨立開發
   if (import.meta.env.VITE_USE_MOCK_TEMPLATES === 'true') {
     installMockTemplatesInterceptor(apiClient);
     // eslint-disable-next-line no-console
     console.info('[IsoDocs] Mock workflow-templates interceptor enabled (VITE_USE_MOCK_TEMPLATES=true)');
   }
 
-  // MSAL v3+ 強制要求先 initialize() 再使用任何 API
+  if (import.meta.env.VITE_USE_MOCK_CASES === 'true') {
+    installMockCasesInterceptor(apiClient);
+  }
+
   await msalInstance.initialize();
 
-  // 處理 redirect 回來的 response（會 set active account）
   const response = await msalInstance.handleRedirectPromise();
   if (response?.account) {
     msalInstance.setActiveAccount(response.account);
@@ -62,7 +62,6 @@ async function bootstrap(target: HTMLElement) {
     }
   }
 
-  // 訂閱 LOGIN_SUCCESS / ACQUIRE_TOKEN_SUCCESS：保持 active account 同步
   msalInstance.addEventCallback((event) => {
     if (
       (event.eventType === EventType.LOGIN_SUCCESS ||
@@ -109,5 +108,5 @@ bootstrap(rootEl).catch((err) => {
   // eslint-disable-next-line no-console
   console.error('App bootstrap failed:', err);
   rootEl.innerHTML =
-    '<pre style="padding:24px;color:#a8071a">App 啟動失敗，請檢查 Azure AD 設定或重新整理頁面。</pre>';
+    '<pre style="padding:24px;color:#a8071a">展面啟動失敗，請檢查 Azure AD 設定或重新整理頁面。</pre>';
 });
