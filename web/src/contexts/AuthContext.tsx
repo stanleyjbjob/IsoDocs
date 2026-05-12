@@ -8,6 +8,7 @@ export interface AuthUser {
   id: string;
   email: string;
   displayName: string;
+  isSystemAdmin?: boolean;
   roles: string[];
 }
 
@@ -17,7 +18,7 @@ export interface AuthContextValue {
   isLoading: boolean;
   /**
    * 取得目前的存取 Token。供 API client 攔截器同步呼叫。
-   * 目前回傳 localStorage 暫存值；issue #34 [2.1.2] 會改由 MSAL acquireTokenSilent 取得。
+   * 目前回傳 localStorage 暂存値；issue #34 [2.1.2] 會改由 MSAL acquireTokenSilent 取得。
    */
   getToken: () => string | null;
   login: () => Promise<void>;
