@@ -29,6 +29,17 @@ public static class Permissions
     /// <summary>邀請新使用者（透過 Microsoft Graph，issue #3）。</summary>
     public const string UsersInvite = "users.invite";
 
+    // ── 代理機制（issue #30 [2.3.2]）────────────────────────────────
+    /// <summary>設定、查詢、撤銷自己的代理設定。</summary>
+    public const string DelegationsWrite = "delegations.write";
+
+    /// <summary>讀取代理設定清單。</summary>
+    public const string DelegationsRead = "delegations.read";
+
+    // ── 案件管理員操作 ────────────────────────────────────────────
+    /// <summary>管理者手動指派節點頂替人員（無代理設定時使用）。</summary>
+    public const string AdminCasesReassign = "admin.cases.reassign";
+
     // ── 系統管理（萬用旁路）─────────────────────────────────────────
     /// <summary>系統管理員萬用權限。User.IsSystemAdmin=true 視同擁有此權限。</summary>
     public const string AdminFullAccess = "admin.full_access";
@@ -41,6 +52,9 @@ public static class Permissions
         UsersRead,
         UsersAssignRoles,
         UsersInvite,
+        DelegationsWrite,
+        DelegationsRead,
+        AdminCasesReassign,
         AdminFullAccess
     };
 
@@ -52,7 +66,10 @@ public static class Permissions
         RolesWrite,
         UsersRead,
         UsersAssignRoles,
-        UsersInvite
+        UsersInvite,
+        DelegationsWrite,
+        DelegationsRead,
+        AdminCasesReassign
     };
 
     /// <summary>判斷字串是否為已知的權限碼。</summary>
