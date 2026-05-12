@@ -1,5 +1,6 @@
 using IsoDocs.Application.Auth;
 using IsoDocs.Application.Authorization;
+using IsoDocs.Application.Cases;
 using IsoDocs.Application.Identity.Roles;
 using IsoDocs.Application.Identity.UserRoles;
 using IsoDocs.Infrastructure.Auth;
@@ -53,6 +54,10 @@ public static class DependencyInjection
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IUserRoleRepository, UserRoleRepository>();
         services.AddScoped<IPermissionService, PermissionService>();
+
+        // issue #32 [5.3.4] — 案件與關聯 Repository
+        services.AddScoped<ICaseRepository, CaseRepository>();
+        services.AddScoped<ICaseRelationRepository, CaseRelationRepository>();
 
         // TODO: issue #22 — 註冊 Hangfire
         // TODO: issue #23 — 註冊 Microsoft Graph（提供離職同步所需的 GraphServiceClient）
