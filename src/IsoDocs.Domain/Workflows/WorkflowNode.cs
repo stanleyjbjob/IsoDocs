@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using IsoDocs.Domain.Common;
 
 namespace IsoDocs.Domain.Workflows;
@@ -8,6 +10,12 @@ namespace IsoDocs.Domain.Workflows;
 /// </summary>
 public class WorkflowNode : Entity<Guid>
 {
+    private static readonly JsonSerializerOptions _jsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+
     public Guid WorkflowTemplateId { get; protected set; }
     public int TemplateVersion { get; protected set; }
     public int NodeOrder { get; protected set; }
@@ -31,6 +39,34 @@ public class WorkflowNode : Entity<Guid>
         Name = name;
         NodeType = nodeType;
         RequiredRoleId = requiredRoleId;
+    }
+
+    /// <summary>
+    /// 取得此節點設定為可繼承的欄位定義 ID 清單（issue [5.3.2]）。
+    /// 子流程建立時將自動帶入主單中這些欄位的值。
+    /// </summary>
+    public IReadOnlyList<Guid> GetInheritableFieldIds()
+    {
+        var config = JsonSerializer.Deserialize<NodeConfigData>(ConfigJson, _jsonOptions);
+        return config?.InheritableFieldIds?.AsReadOnly()
+               ?? (IReadOnlyList<Guid>)Array.Empty<Guid>();
+    }
+
+    /// <summary>
+    /// 設定此節點可繼承的欄位定義 ID 清單，並保留 ConfigJson 中既有的其他設定。
+    /// </summary>
+    public void SetInheritableFields(IReadOnlyList<Guid> fieldDefinitionIds)
+    {
+        var config = JsonSerializer.Deserialize<NodeConfigData>(ConfigJson, _jsonOptions) ?? new NodeConfigData();
+        config = config with { InheritableFieldIds = fieldDefinitionIds.ToList() };
+        ConfigJson = JsonSerializer.Serialize(config, _jsonOptions);
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    private sealed record NodeConfigData
+    {
+        [JsonPropertyName("inheritableFieldIds")]
+        public List<Guid>? InheritableFieldIds { get; init; }
     }
 }
 
