@@ -1,20 +1,24 @@
+using Azure.Identity;
 using IsoDocs.Application.Auth;
 using IsoDocs.Application.Authorization;
 using IsoDocs.Application.Identity.Roles;
 using IsoDocs.Application.Identity.UserRoles;
+using IsoDocs.Application.Notifications;
 using IsoDocs.Infrastructure.Auth;
 using IsoDocs.Infrastructure.Authorization;
+using IsoDocs.Infrastructure.Notifications;
 using IsoDocs.Infrastructure.Persistence;
 using IsoDocs.Infrastructure.Persistence.Interceptors;
 using IsoDocs.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Graph;
 
 namespace IsoDocs.Infrastructure;
 
 /// <summary>
-/// Infrastructure 層的 DI 註冊入口。集中註冊 EF Core DbContext 與外部服務（後續：Microsoft Graph、Azure Blob、Hangfire）。
+/// Infrastructure 層的 DI 註冊入口。集中註冊 EF Core DbContext 與外部服務（後續：Azure Blob、Hangfire）。
 /// </summary>
 public static class DependencyInjection
 {
@@ -54,8 +58,26 @@ public static class DependencyInjection
         services.AddScoped<IUserRoleRepository, UserRoleRepository>();
         services.AddScoped<IPermissionService, PermissionService>();
 
+        // issue #23 [6.1] — Microsoft Graph SDK（Teams 推播 + Email 通知）
+        services.Configure<GraphNotificationSettings>(
+            configuration.GetSection(GraphNotificationSettings.SectionName));
+
+        services.AddSingleton<GraphServiceClient>(sp =>
+        {
+            var cfg = configuration.GetSection(GraphNotificationSettings.SectionName);
+            var tenantId = cfg[nameof(GraphNotificationSettings.TenantId)] ?? string.Empty;
+            var clientId = cfg[nameof(GraphNotificationSettings.ClientId)] ?? string.Empty;
+            var clientSecret = cfg[nameof(GraphNotificationSettings.ClientSecret)] ?? string.Empty;
+            var credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
+            return new GraphServiceClient(credential);
+        });
+
+        services.AddScoped<ITeamsNotificationService, GraphTeamsNotificationService>();
+        services.AddScoped<IEmailNotificationService, GraphEmailNotificationService>();
+        services.AddScoped<INotificationSender, NotificationSender>();
+        services.AddScoped<INotificationRepository, NotificationRepository>();
+
         // TODO: issue #22 — 註冊 Hangfire
-        // TODO: issue #23 — 註冊 Microsoft Graph（提供離職同步所需的 GraphServiceClient）
         // TODO: issue #26 — 註冊 Azure Blob Storage
 
         return services;
