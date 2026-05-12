@@ -1,4 +1,7 @@
 using IsoDocs.Application.Auth;
+using IsoDocs.Application.Cases;
+using IsoDocs.Application.Cases.Queries;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -20,10 +23,12 @@ namespace IsoDocs.Api.Controllers;
 public class MeController : ControllerBase
 {
     private readonly IUserSyncService _userSync;
+    private readonly IMediator _mediator;
 
-    public MeController(IUserSyncService userSync)
+    public MeController(IUserSyncService userSync, IMediator mediator)
     {
         _userSync = userSync;
+        _mediator = mediator;
     }
 
     [HttpGet]
@@ -65,5 +70,39 @@ public class MeController : ControllerBase
             Scopes: principal.Scopes,
             CreatedAt: user.CreatedAt,
             UpdatedAt: user.UpdatedAt));
+    }
+
+    /// <summary>取得目前登入使用者的待辦事項（待處理或進行中的案件節點）。</summary>
+    [HttpGet("todos")]
+    public async Task<ActionResult<IReadOnlyList<TodoItemDto>>> GetTodos(
+        CancellationToken cancellationToken)
+    {
+        var principal = User.ToAzureAdUserPrincipal();
+        if (!principal.IsAuthenticated)
+            return Unauthorized(new { code = AuthErrorCodes.MissingObjectId, message = "存取 Token 未含 oid claim。" });
+
+        var user = await _userSync.UpsertFromAzureAdAsync(principal, cancellationToken);
+        if (!user.IsActive)
+            return StatusCode(StatusCodes.Status403Forbidden, new { code = AuthErrorCodes.UserDeactivated, message = "使用者帳號已被停用。" });
+
+        var result = await _mediator.Send(new GetMyTodosQuery(user.Id), cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>取得目前登入使用者發起的案件清單。</summary>
+    [HttpGet("initiated-cases")]
+    public async Task<ActionResult<IReadOnlyList<CaseSummaryDto>>> GetInitiatedCases(
+        CancellationToken cancellationToken)
+    {
+        var principal = User.ToAzureAdUserPrincipal();
+        if (!principal.IsAuthenticated)
+            return Unauthorized(new { code = AuthErrorCodes.MissingObjectId, message = "存取 Token 未含 oid claim。" });
+
+        var user = await _userSync.UpsertFromAzureAdAsync(principal, cancellationToken);
+        if (!user.IsActive)
+            return StatusCode(StatusCodes.Status403Forbidden, new { code = AuthErrorCodes.UserDeactivated, message = "使用者帳號已被停用。" });
+
+        var result = await _mediator.Send(new GetMyInitiatedCasesQuery(user.Id), cancellationToken);
+        return Ok(result);
     }
 }
